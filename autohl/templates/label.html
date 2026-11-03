@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko" data-color-mode="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>quartermate 라벨링</title><link rel="icon" href="/static/mark.png"><link rel="stylesheet" href="/static/style.css">
+<style>
+.lab{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;max-width:1500px;margin:0 auto;padding:24px 28px 120px}
+.lab .viewer{cursor:crosshair}
+.lab canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.loupe{position:absolute;width:170px;height:170px;border-radius:50%;border:2px solid #fff;box-shadow:0 6px 24px #0008;pointer-events:none;display:none;background-repeat:no-repeat}
+.loupe::after{content:"";position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border:1.5px solid #ff4fd8;border-radius:50%}
+.lmlist{display:grid;gap:4px;max-height:300px;overflow:auto;margin-top:8px}
+.lmlist button{display:flex;justify-content:space-between;align-items:center;text-align:left;background:var(--subtle);background-image:none;border:1px solid var(--edge);color:var(--secondary);box-shadow:none;padding:7px 10px;font-size:12.5px;font-weight:600}
+.lmlist button.sel{border-color:var(--tint);color:var(--ink);background:var(--tint-soft)}
+.lmlist button.done{color:var(--success)}
+.lmlist button.done::after{content:"✓"}
+.side .card{padding:16px 18px}
+.big{font-size:30px;font-weight:780;letter-spacing:-.04em}
+svg.pd{width:100%;height:auto;margin-top:8px;background:#163a26;border-radius:10px}
+@media (max-width:1000px){.lab{grid-template-columns:1fr;padding:18px 16px 140px}}
+</style></head>
+<body>
+<header><div class="logo"></div><h1>quartermate<small>라벨링</small></h1><a class="home" href="/">하이라이트</a></header>
+<div class="lab">
+ <div>
+  <div class="page-heading" style="margin-bottom:14px"><h1>경기장 기준점 찍기</h1><p>오른쪽에서 기준점을 고르고, 영상에서 정확히 그 위치를 클릭하세요. 4개 이상 찍고 <b>라인 그려보기</b>를 눌러 분홍 라인이 페인트와 겹치면 <b>저장</b>하세요. 확대경을 보면서 라인 교차점 한가운데를 누르면 돼요.</p></div>
+  <div class="viewer" id="v"><img id="img" alt=""><canvas id="cv" width="1920" height="1080"></canvas><div class="loupe" id="loupe"></div><div class="tip" id="tip"></div></div>
+  <div class="scrub"><input type="range" id="fr" min="0" value="0"></div>
+  <div class="row" style="margin-top:10px">
+   <button class="ghost" id="p15">◀ 15프레임</button><button class="ghost" id="n15">15프레임 ▶</button>
+   <button class="ghost" id="undo">마지막 점 지우기</button><button class="ghost" id="clear">이 장면 점 모두 지우기</button>
+   <button class="ghost" id="fit">라인 그려보기</button><button class="ok" id="save">저장</button><span class="err" id="err"></span>
+  </div>
+  <div class="chips" id="pts"></div>
+ </div>
+ <div class="side">
+  <div class="card"><span class="hint" style="margin:0">저장한 장면</span><div class="big"><span id="total">0</span> <span style="font-size:15px;color:var(--secondary)">/ 목표 40</span></div>
+   <div class="bar"><i id="tbar"></i></div><p class="hint" style="margin:10px 0 0">카메라 위치와 화면 구역(왼쪽 박스, 센터, 오른쪽 박스)이 골고루 섞이면 좋아요.</p></div>
+  <div class="card"><label>영상</label><select id="job"></select><div class="chips" id="saved"></div></div>
+  <div class="card"><label>기준점 <span class="hint" id="lmhint" style="margin:0"></span></label>
+   <svg class="pd" id="pd" viewBox="-4 -4 108 70"></svg>
+   <div class="lmlist" id="lm"></div></div>
+ </div>
+</div>
+<div class="nextbar" id="nextbar"><span class="nb-label">다음 할 일</span><span class="nb-text" id="nbtext">영상을 고르세요</span></div>
+<script>
+const $=s=>document.querySelector(s);let D=null,jid=null,N=1,pts=[],sel=0,fitted=false;
+const api=(p,b)=>fetch(p,b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'실패');return d});
+const fi=()=>+$('#fr').value;
+function imgURL(){return `/api/label/frame/${jid}/${fi()}.jpg?t=${Date.now()}`}
+function load(){const u=imgURL();$('#img').src=u;$('#loupe').style.backgroundImage=`url(${u})`;$('#tip').textContent=`${(fi()/30).toFixed(1)}초 · 프레임 ${fi()}`;draw();todo()}
+function draw(){const c=$('#cv').getContext('2d');c.clearRect(0,0,1920,1080);
+ pts.forEach(([n,x,y],i)=>{c.strokeStyle='#ffe14d';c.lineWidth=3;c.beginPath();c.arc(x,y,10,0,7);c.stroke();c.fillStyle='#ffe14d';c.font='bold 26px sans-serif';c.fillText(String(D.landmarks.findIndex(l=>l[0]===n)+1),x+12,y-10)});
+ $('#pts').innerHTML=pts.map((p,i)=>`<span class="chip" data-i="${i}">✕ ${D.landmarks.findIndex(l=>l[0]===p[0])+1}. ${p[0]}</span>`).join('');
+ document.querySelectorAll('#pts .chip').forEach(c=>c.onclick=()=>{pts.splice(+c.dataset.i,1);fitted=false;draw();lmList();todo()});lmList()}
+function lmList(){const have=new Set(pts.map(p=>p[0]));
+ $('#lm').innerHTML=D.landmarks.map(([n],i)=>`<button class="${i===sel?'sel':''} ${have.has(n)?'done':''}" data-i="${i}"><span>${i+1}. ${n}</span></button>`).join('');
+ document.querySelectorAll('#lm button').forEach(b=>b.onclick=()=>{sel=+b.dataset.i;lmList();pd()});
+ $('#lmhint').textContent=`· 지금: ${sel+1}번`;pd()}
+function pd(){const L=D.pitch.length,W=D.pitch.width,s=100/L,h=W*s;$('#pd').setAttribute('viewBox',`-4 -4 ${108} ${h+8}`);
+ const y=v=>(v+W/2)*s;let g=`<rect x="0" y="0" width="100" height="${h}" fill="none" stroke="#ffffffaa" stroke-width=".5"/><line x1="50" y1="0" x2="50" y2="${h}" stroke="#ffffffaa" stroke-width=".5"/><circle cx="50" cy="${h/2}" r="${9.15*s}" fill="none" stroke="#ffffffaa" stroke-width=".5"/>`;
+ const have=new Set(pts.map(p=>p[0]));
+ D.landmarks.forEach(([n,x,yy],i)=>{const on=i===sel;g+=`<circle cx="${x*s}" cy="${100*0+y(yy)}" r="${on?2.2:1.3}" fill="${on?'#ff4fd8':(have.has(n)?'#51c7a3':'#ffffffcc')}"/>`});
+ g+=`<text x="1" y="${h+3.5}" font-size="3" fill="#ffffff99">가까운 터치라인 (카메라 쪽)</text>`;$('#pd').innerHTML=g}
+function todo(){const n=pts.length;$('#nbtext').textContent=n<4?`기준점 ${4-n}개 더 찍으세요 (지금 ${sel+1}번: ${D.landmarks[sel][0]})`:(fitted?'라인이 페인트와 겹치면 "저장"을 누르세요':'"라인 그려보기"로 확인하세요')}
+$('#v').onmousemove=e=>{const r=$('#img').getBoundingClientRect(),x=(e.clientX-r.left),y=(e.clientY-r.top),L=$('#loupe'),z=4;
+ L.style.display='block';L.style.left=(x-85)+'px';L.style.top=(y-200)+'px';L.style.backgroundSize=`${r.width*z}px ${r.height*z}px`;L.style.backgroundPosition=`${-x*z+85}px ${-y*z+85}px`};
+$('#v').onmouseleave=()=>$('#loupe').style.display='none';
+$('#v').onclick=e=>{const r=$('#img').getBoundingClientRect(),x=(e.clientX-r.left)/r.width*1920,y=(e.clientY-r.top)/r.height*1080,n=D.landmarks[sel][0];
+ pts=pts.filter(p=>p[0]!==n);pts.push([n,x,y]);fitted=false;
+ const have=new Set(pts.map(p=>p[0]));for(let k=1;k<=D.landmarks.length;k++){const j=(sel+k)%D.landmarks.length;if(!have.has(D.landmarks[j][0])){sel=j;break}}draw();todo()};
+$('#fit').onclick=async()=>{$('#err').textContent='';try{await api('/api/label/fit',{jid,frame:fi(),points:pts});fitted=true;load()}catch(e){$('#err').textContent=e.message}};
+$('#save').onclick=async()=>{$('#err').textContent='';if(pts.length<4){$('#err').textContent='기준점을 4개 이상 찍어 주세요.';return}
+ try{const r=await api('/api/label/save',{jid,frame:fi(),points:pts});$('#total').textContent=r.total;$('#tbar').style.width=Math.min(100,r.total/40*100)+'%';$('#err').textContent='';
+  const J=D.jobs.find(j=>j.id===jid);if(!J.labels.includes(fi()))J.labels.push(fi());saved();$('#fr').value=Math.min(N-1,fi()+30);pts=[];fitted=false;load()}catch(e){$('#err').textContent=e.message}};
+$('#undo').onclick=()=>{pts.pop();fitted=false;draw();todo()};$('#clear').onclick=()=>{pts=[];fitted=false;draw();todo()};
+$('#p15').onclick=()=>{$('#fr').value=Math.max(0,fi()-15);pts=[];fitted=false;load()};$('#n15').onclick=()=>{$('#fr').value=Math.min(N-1,fi()+15);pts=[];fitted=false;load()};
+$('#fr').onchange=()=>{pts=[];fitted=false;load()};
+function saved(){const J=D.jobs.find(j=>j.id===jid);$('#saved').innerHTML=J.labels.sort((a,b)=>a-b).map(f=>`<span class="chip anc" data-f="${f}">✓ ${(f/30).toFixed(1)}초</span>`).join('');
+ document.querySelectorAll('#saved .chip').forEach(c=>c.onclick=()=>{$('#fr').value=c.dataset.f;pts=[];fitted=false;load()})}
+$('#job').onchange=()=>{jid=$('#job').value;const J=D.jobs.find(j=>j.id===jid);N=J.frames;$('#fr').max=N-1;$('#fr').value=0;pts=[];saved();load()};
+api('/api/label/list').then(d=>{D=d;$('#total').textContent=d.total;$('#tbar').style.width=Math.min(100,d.total/40*100)+'%';
+ $('#job').innerHTML=d.jobs.map(j=>`<option value="${j.id}">${j.title} (${(j.frames/30).toFixed(0)}초, 라벨 ${j.labels.length})</option>`).join('');$('#job').onchange()});
+</script>
+</body></html>

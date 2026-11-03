@@ -1,0 +1,17 @@
+# Clip data, renders and models are large and per-user; the app recreates them.
+jobs/
+outputs/
+runs/
+work/
+*.npy
+*.npz
+*.mp4
+*.pt
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+.claude/
+
+# Venue presets keep their calibrated reference homographies.
+!autohl/venues/**/*.npy

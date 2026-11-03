@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko" data-color-mode="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>quartermate 하이라이트</title><link rel="icon" href="/static/mark.png"><link rel="stylesheet" href="/static/style.css"></head>
+<body>
+<header><div class="logo"></div><h1>quartermate<small>하이라이트</small></h1></header>
+<main>
+<div class="page-heading"><h1>하이라이트 만들기</h1><p>경기 영상에서 장면을 고르고 선수를 한 번 찍으면, 속도 분석이 들어간 중계 스타일 영상을 만들어요.</p></div>
+<form id="f" class="card active">
+ <h2><span class="n">1</span>영상</h2>
+ <p class="hint">유튜브 링크에 구간을 넣거나, 영상 파일을 올려 주세요. 한 컷(카메라가 끊기지 않는 장면)으로 90초 이하만 돼요.</p>
+ <div class="grid">
+  <div style="grid-column:1/-1"><label>유튜브 링크</label><input type="url" name="url" placeholder="https://www.youtube.com/watch?v=..."></div>
+  <div><label>또는 영상 파일</label><input type="file" name="file" accept="video/*"></div>
+  <div><label>시작 (예: 9:17)</label><input type="text" name="start" placeholder="9:17"></div>
+  <div><label>끝 (예: 9:30)</label><input type="text" name="end" placeholder="9:30"></div>
+ </div>
+ <h2 style="margin-top:24px"><span class="n">2</span>선수와 팀</h2>
+ <p class="hint">표시할 선수는 한 명이에요. 이름은 비워 두면 팀 이름이 나와요.</p>
+ <div class="grid">
+  <div><label>등번호</label><input type="text" name="number" value="14" maxlength="3"></div>
+  <div><label>선수 이름 (선택)</label><input type="text" name="name" placeholder=""></div>
+ </div>
+ <div class="grid" style="margin-top:14px">
+  <div><label>우리 팀 클럽</label><input type="text" name="team_club" value="FC안암"></div>
+  <div><label>우리 팀 이름</label><input type="text" name="team_squad" value="YB"></div>
+  <div><label>우리 팀 색</label><div class="swatches" data-name="team_color" data-val="blue"></div></div>
+ </div>
+ <div class="grid" style="margin-top:14px">
+  <div><label>상대 팀 클럽</label><input type="text" name="opp_club" value="FC안암"></div>
+  <div><label>상대 팀 이름</label><input type="text" name="opp_squad" value="대표팀"></div>
+  <div><label>상대 팀 색</label><div class="swatches" data-name="opp_color" data-val="yellow"></div></div>
+ </div>
+ <h2 style="margin-top:24px"><span class="n">3</span>장면과 구장</h2>
+ <div class="grid">
+  <div><label>장면 종류</label><div class="seg">
+   <input type="radio" name="event" id="e1" value="goal" checked><label for="e1">골</label>
+   <input type="radio" name="event" id="e2" value="assist"><label for="e2">어시스트</label>
+   <input type="radio" name="event" id="e3" value="sprint"><label for="e3">질주</label></div></div>
+  <div><label>구장</label><select name="venue" id="venue"></select></div>
+  <div id="dims" style="display:none"><label>크기 (m, 길이 × 폭)</label><div class="row"><input type="number" name="length" value="100" style="width:45%"> × <input type="number" name="width" value="65" style="width:45%"></div></div>
+ </div>
+ <div class="row" style="margin-top:14px">
+  <label style="margin:0;display:flex;gap:8px;align-items:center"><input type="checkbox" name="show_clock" checked> 경기 시계 표시</label>
+  <input type="text" name="clock" placeholder="시계 시작값 (비우면 영상 시간)" style="width:240px">
+ </div>
+ <div class="row" style="margin-top:22px"><button type="submit" id="go">분석 시작</button><span class="err" id="err"></span></div>
+</form>
+<div class="card"><h2>경기장 인식 학습</h2><p class="hint">경기장 라인이 자주 틀어지면, 장면마다 기준점을 찍어 학습 데이터를 만들어 주세요. 40장 정도면 학습을 시작할 수 있어요.</p><a class="btn ghost" href="/label">기준점 찍으러 가기</a></div>
+<div class="card"><h2>지난 작업</h2><div class="jobs" id="jobs"><p class="hint">아직 없어요.</p></div></div>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+fetch('/api/colors').then(r=>r.json()).then(C=>{
+ document.querySelectorAll('.swatches').forEach(w=>{const n=w.dataset.name;
+  for(const [k,v] of Object.entries(C)){const id=n+'_'+k;w.insertAdjacentHTML('beforeend',`<input type="radio" name="${n}" id="${id}" value="${k}" ${k==w.dataset.val?'checked':''}><label for="${id}" style="background:${v}" title="${k}"></label>`)}})});
+fetch('/api/venues').then(r=>r.json()).then(V=>{const s=$('#venue');
+ V.forEach(v=>s.insertAdjacentHTML('beforeend',`<option value="${v.id}">${v.name} (${v.length}×${v.width} m)</option>`));
+ s.insertAdjacentHTML('beforeend','<option value="">다른 구장 (기준점 직접 찍기)</option>');
+ s.onchange=()=>$('#dims').style.display=s.value?'none':'block'});
+fetch('/api/jobs').then(r=>r.json()).then(J=>{if(!J.length)return;$('#jobs').innerHTML=J.slice(0,12).map(j=>{
+ const c=j.cfg||{},t=c.team||{};const st={done:'완성',error:'오류',input:'입력 대기',tracked:'추적 완료',preparing:'준비 중',rendering:'만드는 중'}[j.status]||j.status;
+ return `<a href="/job/${j.id}"><span>#${c.number||'?'} ${t.club||''} ${t.squad||''} · ${c.url?(c.start+'–'+c.end):'업로드'}</span><span class="pill ${j.status}">${st}</span></a>`}).join('')});
+$('#f').onsubmit=async e=>{e.preventDefault();$('#err').textContent='';$('#go').disabled=true;$('#go').textContent='올리는 중…';
+ const r=await fetch('/api/jobs',{method:'POST',body:new FormData($('#f'))});const d=await r.json();
+ if(d.id)location.href='/job/'+d.id;else{$('#err').textContent=d.error||'실패';$('#go').disabled=false;$('#go').textContent='분석 시작'}};
+</script>
+</body></html>

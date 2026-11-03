@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ko" data-color-mode="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>quartermate 하이라이트</title><link rel="icon" href="/static/mark.png"><link rel="stylesheet" href="/static/style.css"></head>
+<body>
+<header><div class="logo"></div><h1>quartermate<small>하이라이트</small></h1><a class="home" href="/">새 영상</a></header>
+<main>
+<div class="page-heading"><a class="crumb" href="/">‹ 하이라이트</a><h1 id="ptitle">하이라이트 분석</h1></div>
+<div class="hero"><div class="crest"></div><div><div class="badge" id="hbadge">분석 중</div>
+ <div class="who" id="hwho"></div><div class="meta" id="hmeta"></div></div></div>
+<section class="card" id="s1"><h2><span class="n">1</span>영상 준비</h2>
+ <p class="hint" id="msg">대기 중</p><div class="bar"><i id="pbar"></i></div>
+ <div class="err" id="err1"></div>
+ <details style="margin-top:10px"><summary class="hint" style="cursor:pointer">진행 기록</summary><div class="log" id="log"></div></details>
+</section>
+
+<section class="card locked" id="s2"><h2><span class="n">2</span>경기장 라인 확인</h2>
+ <div class="notice" id="calfail" style="display:none"><b>이 영상은 경기장을 자동으로 맞추지 못했어요.</b><span>카메라 위치가 저장된 구장과 달라요. 아래에서 기준점 4개를 찍으면 속도까지 분석돼요. 급하면 4단계에서 <b>속도 없이 만들기</b>를 눌러도 돼요.</span></div>
+ <p class="hint" id="calhint"></p>
+ <div class="viewer" id="cv"><img id="cimg" alt=""><div class="tip" id="ctip"></div></div>
+ <div class="scrub"><input type="range" id="cs" min="0" value="0"></div>
+ <div id="manual" style="display:none;margin-top:12px">
+  <div class="row"><select id="lm" style="max-width:360px"></select><span class="hint" style="margin:0">고른 기준점을 화면에서 클릭하세요. 같은 프레임에서 4개 이상 찍어 주세요.</span></div>
+  <div class="chips" id="pts"></div>
+  <div class="row" style="margin-top:12px"><button class="ghost" id="calc">라인 계산</button></div>
+ </div>
+ <div class="row" style="margin-top:14px"><button class="ok" id="calok">라인이 맞아요</button><button class="ghost" id="calman">직접 찍을게요</button><span class="err" id="err2"></span></div>
+ <div class="row" id="spot" style="display:none;margin-top:12px"><span class="hint" style="margin:0">다음에 같은 자리에서 찍은 영상은 자동으로 맞출까요?</span><input type="text" id="spotname" placeholder="구장 이름" style="width:200px"><button class="ghost" id="spotsave">이 촬영 위치 저장</button></div>
+</section>
+
+<section class="card locked" id="s3"><h2><span class="n">3</span>선수 찍기</h2>
+ <p class="hint" id="phint">① 선수가 잘 보이는 장면에서 <b>본인을 클릭</b>하세요. ② <b id="evname">골</b> 순간으로 옮긴 뒤 <span class="kbd">순간 지정</span>을 누르고, 그 장면에서도 본인을 한 번 더 클릭하세요. 두 번 찍으면 겹침에 훨씬 강해져요.</p>
+ <div class="viewer" id="pv"><img id="pimg" alt=""><div class="tip" id="ptip"></div></div>
+ <div class="scrub"><input type="range" id="ps" min="0" value="0"><div class="timeline" id="tl"></div></div>
+ <div class="row" style="margin-top:12px">
+  <button class="ghost" id="prev">◀ 1프레임</button><button class="ghost" id="next">1프레임 ▶</button>
+  <button class="ghost" id="setev">순간 지정</button><button class="ghost" id="clr">이 장면 클릭 지우기</button>
+  <button id="trk">추적하기</button><span class="err" id="err3"></span>
+ </div>
+ <div class="chips" id="marks"></div>
+ <div id="trkres" style="display:none">
+  <div class="stats" id="stats"></div>
+  <p class="hint" style="margin-top:12px" id="chkhint"></p><div class="chips" id="checks"></div>
+ </div>
+</section>
+
+<section class="card" id="s4"><h2><span class="n">4</span>하이라이트 만들기</h2>
+ <p class="hint">아래가 모두 체크되면 만들 수 있어요. 추적은 버튼을 누를 때 자동으로 다시 해요. 30초 안팎 걸려요.</p>
+ <ul class="checklist" id="checklist"></ul>
+ <div class="row"><button id="rend">하이라이트 만들기</button><button class="ghost" id="rend2" style="display:none">속도 없이 만들기</button><span class="hint" id="rmsg" style="margin:0"></span></div>
+ <div class="bar" id="rbarw" style="display:none"><i id="rbar"></i></div>
+ <div id="out" style="display:none;margin-top:16px"><video id="vid" controls playsinline></video>
+  <div class="row" style="margin-top:12px"><a class="btn" id="dl">MP4 내려받기</a></div></div>
+ <div class="err" id="err4"></div>
+</section>
+</main>
+<div class="nextbar" id="nextbar" hidden><span class="nb-label">다음 할 일</span><span class="nb-text" id="nbtext"></span><button id="nbgo">이동</button></div>
+<script>
+const JID='{{ jid }}',$=s=>document.querySelector(s);
+let S=null,N=1,anchors={},evf=null,pts=[],calFrame=0,manual=false,lastStatus=null;
+const api=(p,b)=>fetch('/api/job/'+JID+p,b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'실패');return d});
+const EVN={goal:'골',assist:'어시스트(패스)',sprint:'질주가 끝나는'};
+const fmt=f=>{const s=f/30;return `${Math.floor(s/60)}:${(s%60).toFixed(1).padStart(4,'0')}`};
+function stage(n,state){const c=$('#s'+n);c.classList.remove('locked','active','done');if(state)c.classList.add(state)}
+function progress(msg){const m=/(\d+)\/(\d+)/.exec(msg||'');return m?(+m[1])/(+m[2]):null}
+
+// ---------- viewers ----------
+function viewer(img,range,ov,onclick,tip){
+ let t=null;const load=()=>{clearTimeout(t);t=setTimeout(()=>{img.src=`/api/job/${JID}/frame/${range.value}.jpg?ov=${ov()}&t=${Date.now()}`;tip()},40)};
+ range.oninput=load;img.parentElement.onclick=e=>{const r=img.getBoundingClientRect();onclick(+range.value,(e.clientX-r.left)/r.width*1920,(e.clientY-r.top)/r.height*1080)};
+ return load;
+}
+const cload=viewer($('#cimg'),$('#cs'),()=>'p',(f,x,y)=>{if(!manual)return;if(f!==calFrame&&pts.length){if(!confirm('다른 장면의 기준점이 지워져요. 계속할까요?'))return;pts=[]}
+ calFrame=f;const n=$('#lm').value;pts=pts.filter(p=>p[0]!==n);pts.push([n,x,y]);drawPts();
+ const o=$('#lm');if(o.selectedIndex<o.options.length-1)o.selectedIndex++},()=>{$('#ctip').textContent=fmt(+$('#cs').value)});
+const pload=viewer($('#pimg'),$('#ps'),()=>'dt',async(f,x,y)=>{anchors[f]=[x,y];await saveMarks();pload()},()=>{const f=+$('#ps').value;$('#ptip').textContent=fmt(f)+(f==evf?' · '+EVN[S.cfg.event]+' 순간':'')+(anchors[f]?' · 클릭됨':'')});
+function drawPts(){$('#pts').innerHTML=pts.map((p,i)=>`<span class="chip" data-i="${i}">✕ ${p[0]}</span>`).join('');
+ document.querySelectorAll('#pts .chip').forEach(c=>c.onclick=()=>{pts.splice(+c.dataset.i,1);drawPts()})}
+function step(d){const r=$('#ps');r.value=Math.min(Math.max(+r.value+d,0),N-1);pload()}
+$('#prev').onclick=()=>step(-1);$('#next').onclick=()=>step(1);
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'&&e.target.type!=='range')return;if(e.key==='ArrowLeft'){step(e.shiftKey?-10:-1);e.preventDefault()}if(e.key==='ArrowRight'){step(e.shiftKey?10:1);e.preventDefault()}});
+
+// ---------- marks ----------
+async function saveMarks(){await api('/anchors',{anchors,event_frame:evf});S.track_fresh=false;drawMarks();refreshTodo()}
+function drawMarks(){
+ const ks=Object.keys(anchors).map(Number).sort((a,b)=>a-b);
+ $('#marks').innerHTML=ks.map(k=>`<span class="chip anc" data-f="${k}">● 클릭 ${fmt(k)}</span>`).join('')+(evf!=null?`<span class="chip ev" data-f="${evf}">★ ${EVN[S.cfg.event]} 순간 ${fmt(evf)}</span>`:'');
+ document.querySelectorAll('#marks .chip').forEach(c=>c.onclick=()=>{$('#ps').value=c.dataset.f;pload()});drawTimeline()}
+function drawTimeline(){const tl=$('#tl');let h='';const pc=f=>(f/(N-1)*100).toFixed(2)+'%';
+ const rep=S&&S.track&&S.track.report;
+ if(rep){rep.check.forEach(([a,b])=>h+=`<span class="chk" style="left:${pc(a)};width:${pc(b-a+1)}"></span>`);rep.lost.forEach(([a,b])=>h+=`<span class="lost" style="left:${pc(a)};width:${pc(b-a+1)}"></span>`)}
+ Object.keys(anchors).forEach(k=>h+=`<span class="anc" style="left:${pc(+k)}"></span>`);if(evf!=null)h+=`<span class="ev" style="left:${pc(evf)}"></span>`;tl.innerHTML=h}
+$('#setev').onclick=async()=>{evf=+$('#ps').value;await saveMarks();pload()};
+$('#clr').onclick=async()=>{const f=+$('#ps').value;delete anchors[f];if(evf===f)evf=null;await saveMarks();pload()};
+$('#trk').onclick=async()=>{$('#err3').textContent='';$('#trk').disabled=true;$('#trk').textContent='추적 중…';
+ try{const r=await api('/track',{});S.track=r;S.track_fresh=true;showTrack();pload()}catch(e){$('#err3').textContent=e.message}
+ $('#trk').disabled=false;$('#trk').textContent='다시 추적하기'};
+function showTrack(){const r=S.track;if(!r)return;refreshTodo();$('#trkres').style.display='block';drawTimeline();
+ const st=r.stats;$('#stats').innerHTML=st?[['최고 속도',st.top+' km/h','top'],['평균 속도',st.avg+' km/h',''],['뛴 거리',Math.round(st.run)+' m',''],['분석 구간',fmt(st.lo)+' – '+fmt(st.end),'']].map(([a,b,k])=>`<div class="stat ${k}"><b>${b}</b><span>${a}</span></div>`).join(''):'<p class="hint">경기장 라인을 확인하면 속도가 계산돼요.</p>';
+ const ck=r.report.check.concat(r.report.lost.map(x=>[x[0],x[1],'추적 안 됨']));
+ if(r.warn)ck.unshift([r.stats.top_f-10,r.stats.top_f+10,'속도 이상']);
+ $('#chkhint').innerHTML=(r.warn?`<b style="color:var(--error)">${r.warn}</b><br>`:'')+(ck.length?'주황색 구간은 다른 선수와 겹쳐서 헷갈릴 수 있는 곳이에요. 눌러서 파란 상자가 본인인지 확인하고, 틀렸으면 그 장면에서 본인을 클릭한 뒤 다시 추적하세요.':'확인이 필요한 구간이 없어요.');
+ $('#checks').innerHTML=ck.map(([a,b,why])=>`<span class="chip warn" data-f="${Math.round((a+b)/2)}">${fmt(a)}–${fmt(b)} ${why}</span>`).join('');
+ document.querySelectorAll('#checks .chip').forEach(c=>c.onclick=()=>{$('#ps').value=c.dataset.f;pload()});
+ if(st&&S.calib&&S.calib.confirmed)stage(4,'active')}
+
+// ---------- calibration ----------
+function calibUI(){const c=S.calib||{};
+ if(c.confirmed){stage(2,'done');$('#calhint').textContent='경기장 라인 확인 완료.';$('#spot').style.display=c.mode==='manual'?'flex':'none';return}
+ stage(2,'active');
+ if(c.mode&&!manual){$('#calhint').textContent=c.mode==='auto'?'저장된 구장에 맞춰 자동으로 그린 라인이에요. 슬라이더로 여러 장면을 넘겨 보면서 빨간 선이 실제 라인과 맞는지 확인해 주세요.':'찍은 기준점으로 그린 라인이에요. 여러 장면에서 맞는지 확인해 주세요.';$('#calok').style.display=''}
+ else{manual=true;$('#calhint').textContent=c.mode?'':'이 영상은 자동으로 맞추지 못했어요. 라인이 잘 보이는 장면에서 기준점을 4개 이상 찍어 주세요(페널티박스 모서리, 하프라인 끝 등).';$('#manual').style.display='block';$('#calok').style.display=c.mode?'':'none'}}
+$('#calman').onclick=()=>{manual=true;$('#manual').style.display='block';$('#calhint').textContent='라인이 잘 보이는 장면에서 기준점을 4개 이상 찍어 주세요.'};
+$('#calc').onclick=async()=>{$('#err2').textContent='';try{await api('/calib',{action:'points',frame:calFrame,points:pts});S.calib={mode:'manual'};$('#calok').style.display='';$('#calhint').textContent='찍은 기준점으로 그린 라인이에요. 슬라이더로 여러 장면에서 맞는지 보고 "라인이 맞아요"를 누르세요.';cload();refreshTodo()}catch(e){$('#err2').textContent=e.message}};
+$('#calok').onclick=async()=>{await api('/calib',{action:'confirm'});S.calib.confirmed=true;manual=false;$('#manual').style.display='none';calibUI();refreshTodo();
+ if(Object.keys(anchors).length){try{S.track=await api('/track',{});S.track_fresh=true;showTrack()}catch(e){}}};
+$('#spotsave').onclick=async()=>{const n=$('#spotname').value.trim()||'새 구장';const id=S.cfg.venue||('v'+Date.now().toString(36));
+ await api('/calib',{action:'save_spot',venue:id,name:n});$('#spotsave').textContent='저장했어요';$('#spotsave').disabled=true};
+
+// ---------- render ----------
+async function doRender(nospeed){$('#err4').textContent='';const n=nextStep();
+ if(n&&n.blocks&&!(nospeed&&n.id==='calib')){go(n);return}
+ try{await api('/render',{nospeed});$('#rend').disabled=true;$('#rend2').disabled=true;$('#rmsg').textContent='시작했어요';S.status='rendering';refreshTodo();poll()}catch(e){$('#err4').textContent=e.message}}
+$('#rend').onclick=()=>doRender(false);$('#rend2').onclick=()=>doRender(true);
+
+// ---------- what is left to do ----------
+// One source of truth for the checklist, the render button and the sticky bar.
+function nextStep(){
+ if(!S||S.status==='preparing')return {id:'prep',text:'영상을 준비하고 있어요',sec:1,blocks:true};
+ const nA=Object.keys(anchors).length,c=S.calib||{};
+ if(S.status==='rendering')return {id:'wait',text:'영상을 만들고 있어요',sec:4,blocks:true};
+ if(!nA)return {id:'player',text:'3단계: 영상에서 선수를 한 번 클릭하세요',sec:3,blocks:true};
+ if(!c.confirmed)return {id:'calib',text:c.mode?'2단계: 빨간 라인이 맞는지 보고 "라인이 맞아요"를 누르세요':'2단계: 경기장 기준점 4개를 찍거나, 속도 없이 만드세요',sec:2,blocks:true};
+ if(evf==null)return {id:'event',text:`3단계: ${EVN[S.cfg.event]} 순간으로 옮긴 뒤 "순간 지정"을 누르세요 (선택)`,sec:3,blocks:false};
+ if(S.status==='done')return null;
+ return {id:'render',text:'4단계: 하이라이트를 만들 수 있어요',sec:4,blocks:false};
+}
+function go(n){const el=$('#s'+n.sec);el.scrollIntoView({behavior:'smooth',block:'start'});el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1400)}
+function refreshTodo(){
+ if(!S)return;const n=nextStep(),nA=Object.keys(anchors).length,c=S.calib||{},fresh=S.track_fresh;
+ const items=[[nA>0,nA?`선수 클릭 ${nA}번`:'선수 클릭 (3단계)',3,'todo'],
+  [!!c.confirmed,c.confirmed?'경기장 라인 확인':(c.mode?'경기장 라인 확인 (2단계)':'경기장 라인: 자동 보정 실패 (2단계)'),2,'todo'],
+  [evf!=null,evf!=null?`${EVN[S.cfg.event]} 순간 ${fmt(evf)}`:`${EVN[S.cfg.event]} 순간 지정 (3단계, 선택)`,3,'opt'],
+  [!!fresh,fresh?'선수 추적 최신':'선수 추적: 만들 때 자동으로 해요',3,'auto']];
+ $('#checklist').innerHTML=items.map(([ok,t,sec,k])=>`<li class="${ok?'ok':k}" data-sec="${sec}"><i></i>${t}</li>`).join('');
+ document.querySelectorAll('#checklist li.todo,#checklist li.opt').forEach(li=>li.onclick=()=>go({sec:+li.dataset.sec}));
+ const busy=S.status==='rendering',blocked=n&&n.blocks&&n.id!=='wait';
+ $('#rend').disabled=busy;$('#rend').textContent=busy?'만드는 중…':(blocked?'먼저 할 일로 이동':(S.status==='done'?'다시 만들기':'하이라이트 만들기'));
+ $('#rend2').style.display=(!c.confirmed&&nA>0)?'':'none';$('#rend2').disabled=busy;
+ $('#calfail').style.display=(!c.mode&&!c.confirmed)?'flex':'none';
+ const nb=$('#nextbar');if(n&&n.id!=='prep'){nb.hidden=false;$('#nbtext').textContent=n.text;
+  $('#nbgo').style.display=n.id==='wait'?'none':'';$('#nbgo').textContent=n.id==='render'?'만들기':'이동';
+  $('#nbgo').onclick=()=>n.id==='render'?doRender(false):go(n)}else nb.hidden=true}
+
+// ---------- state ----------
+async function poll(){
+ S=await api('');N=S.frames||1;const st=S.status;
+ $('#msg').textContent=S.message||'';const p=progress(S.message);if(st==='preparing')$('#pbar').style.width=((p||0)*100)+'%';
+ $('#log').innerHTML=(S.log||[]).map(l=>l.join(' ')).reverse().join('<br>');
+ const c=S.cfg||{},t=c.team||{},o=c.opp||{};
+ $('#hwho').innerHTML=`${t.club||''} ${t.squad||''}<span class="vs">vs</span>${o.club||''} ${o.squad||''}`;
+ $('#hmeta').innerHTML=[`#${c.number||'?'} ${c.name||''}`,{goal:'골 장면',assist:'어시스트 장면',sprint:'질주 장면'}[c.event]||'',c.url?`${c.start} – ${c.end}`:'업로드 영상',S.frames?`${(S.frames/30).toFixed(1)}초`:''].filter(Boolean).map(x=>`<span>${x}</span>`).join('');
+ $('#hbadge').textContent={preparing:'준비 중',input:'입력 대기',tracked:'추적 완료',rendering:'만드는 중',done:'완성',error:'오류'}[st]||st;$('#evname').textContent=EVN[c.event]||'골';
+ if(st==='error'){$('#err1').textContent=S.error;if(lastStatus!==st&&S.frames){/* failed later: keep steps open */}else return}
+ if(st==='preparing'){stage(1,'active');setTimeout(poll,1500);return}
+ if(lastStatus===null||lastStatus==='preparing'){
+  stage(1,'done');$('#pbar').style.width='100%';$('#cs').max=N-1;$('#ps').max=N-1;
+  $('#lm').innerHTML=S.landmarks.map(n=>`<option>${n}</option>`).join('');
+  anchors={};Object.entries(S.anchors||{}).forEach(([k,v])=>anchors[+k]=v);evf=S.event_frame??null;
+  const cp=S.calib_points||{};const k=Object.keys(cp)[0];if(k){calFrame=+k;pts=cp[k];drawPts();$('#cs').value=k}
+  calibUI();stage(3,'active');cload();pload();drawMarks();if(S.track)showTrack()}
+ if(st==='rendering'){$('#rbarw').style.display='block';$('#rmsg').textContent=S.message;$('#rbar').style.width=((progress(S.message)||0)*100)+'%';$('#rend').disabled=true;setTimeout(poll,1000)}
+ if(st==='done'){stage(4,'done');$('#rbarw').style.display='none';$('#rmsg').textContent='완성!';$('#rend').disabled=false;$('#rend').textContent='다시 만들기';
+  $('#out').style.display='block';const v=`/api/job/${JID}/video?t=${Date.now()}`;if(lastStatus!=='done')$('#vid').src=v;$('#dl').href=`/api/job/${JID}/video?dl=1`}
+ refreshTodo();lastStatus=st;
+}
+poll();
+</script>
+</body></html>
