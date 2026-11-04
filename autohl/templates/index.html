@@ -37,7 +37,7 @@
    <input type="radio" name="event" id="e2" value="assist"><label for="e2">어시스트</label>
    <input type="radio" name="event" id="e3" value="sprint"><label for="e3">질주</label></div></div>
   <div><label>구장</label><select name="venue" id="venue"></select></div>
-  <div id="dims" style="display:none"><label>크기 (m, 길이 × 폭)</label><div class="row"><input type="number" name="length" value="100" style="width:45%"> × <input type="number" name="width" value="65" style="width:45%"></div></div>
+  <div id="dims" style="display:none"><label>실제 구장 크기 (m, 길이 × 폭)</label><div class="row"><input type="number" name="length" min="0.01" step="any" placeholder="길이" style="width:45%"> × <input type="number" name="width" min="0.01" step="any" placeholder="폭" style="width:45%"></div><p class="hint">크기를 모르면 비워 두세요. 속도 없이 하이라이트를 만들 수 있어요.</p></div>
  </div>
  <div class="row" style="margin-top:14px">
   <label style="margin:0;display:flex;gap:8px;align-items:center"><input type="checkbox" name="show_clock" checked> 경기 시계 표시</label>
@@ -55,7 +55,7 @@ fetch('/api/colors').then(r=>r.json()).then(C=>{
   for(const [k,v] of Object.entries(C)){const id=n+'_'+k;w.insertAdjacentHTML('beforeend',`<input type="radio" name="${n}" id="${id}" value="${k}" ${k==w.dataset.val?'checked':''}><label for="${id}" style="background:${v}" title="${k}"></label>`)}})});
 fetch('/api/venues').then(r=>r.json()).then(V=>{const s=$('#venue');
  V.forEach(v=>s.insertAdjacentHTML('beforeend',`<option value="${v.id}">${v.name} (${v.length}×${v.width} m)</option>`));
- s.insertAdjacentHTML('beforeend','<option value="">다른 구장 (기준점 직접 찍기)</option>');
+ s.insertAdjacentHTML('beforeend','<option value="">다른 구장 (영상에서 라인 찾기)</option>');
  s.onchange=()=>$('#dims').style.display=s.value?'none':'block'});
 fetch('/api/jobs').then(r=>r.json()).then(J=>{if(!J.length)return;$('#jobs').innerHTML=J.slice(0,12).map(j=>{
  const c=j.cfg||{},t=c.team||{};const st={done:'완성',error:'오류',input:'입력 대기',tracked:'추적 완료',preparing:'준비 중',rendering:'만드는 중'}[j.status]||j.status;

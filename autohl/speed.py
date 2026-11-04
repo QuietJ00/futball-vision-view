@@ -3,6 +3,34 @@ import numpy as np
 # with the stride and jitter more in depth (a pixel of foot error is several times more metres
 # toward the camera than across), so depth is smoothed harder than the across-screen axis.
 FPS=30
+
+
+def measure_window(xy, observed, first, last, fps=FPS):
+    """Estimate average ground velocity from observed positions over a short interval."""
+    positions = np.asarray(xy[first:last+1], dtype=float)
+    keep = np.asarray(observed[first:last+1], dtype=bool) & np.isfinite(positions).all(axis=1)
+    times = np.arange(len(positions))/fps
+    if len(times) < 16 or keep.sum() < .75*len(times) or not (keep[0] and keep[-1]):
+        raise ValueError('속도를 추정하려면 시작과 끝을 포함한 연속 관측점이 더 필요해요.')
+    gaps = np.diff(np.flatnonzero(keep))
+    if gaps.max() > max(4, round(.17*fps)):
+        raise ValueError('선수 발 위치를 확인할 수 없는 구간이 너무 길어요.')
+    fit_time = times[keep] - times.mean()
+    design = np.column_stack((np.ones_like(fit_time), fit_time))
+    target = positions[keep]
+    weights = np.ones(len(target))
+    for _ in range(5):
+        root = np.sqrt(weights)[:, None]
+        intercept, velocity = np.linalg.lstsq(design*root, target*root, rcond=None)[0]
+        residual = np.linalg.norm(target - intercept - fit_time[:, None]*velocity, axis=1)
+        scale = max(float(np.median(residual)) * 1.4826, .06)
+        weights = np.minimum(1., 1.5*scale/np.maximum(residual, 1e-9))
+    mps = float(np.linalg.norm(velocity))
+    return {'speed_kmh': 3.6*mps, 'duration_s': float(times[-1]),
+            'distance_m': mps*float(times[-1]), 'observed_frames': int(keep.sum()),
+            'median_fit_residual_m': float(np.median(residual))}
+
+
 def gsmooth(a,s):
  k=np.arange(-3*s,3*s+1);w=np.exp(-k**2/(2*s*s));w/=w.sum()
  pad=np.pad(a,(3*s,3*s),mode='edge');return np.convolve(pad,w,'valid')
@@ -16,6 +44,8 @@ def depth_axis(C,fi,p):
 def analyse(C,foot,lo,hi,end=None):
  # foot: (N,2) image points (nan outside the track). end: last frame counted in the stats
  # (the shot or goal); defaults to the end of the track.
+ if hasattr(C,'supports') and not C.supports(lo,hi):
+  raise ValueError('선수 추적 구간의 경기장 좌표를 확인할 수 없어요.')
  N=len(foot);XY=np.full((N,2),np.nan)
  for i in range(lo,hi+1):XY[i]=C.to_pitch(i,[foot[i]])[0]
  mid=(lo+hi)//2;dz=depth_axis(C,mid,foot[mid]);dx=np.array([dz[1],-dz[0]])

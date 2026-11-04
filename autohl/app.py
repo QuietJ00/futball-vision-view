@@ -1,7 +1,7 @@
 import io,os,sys,threading
 import cv2,numpy as np
 from flask import Flask,jsonify,request,send_file,abort,render_template
-from . import pipeline,pitch,ui
+from . import pipeline,pitch,ui,video
 from .pipeline import Job
 # Local web app: upload or link a clip, click your player, check, render.
 app=Flask(__name__,template_folder='templates',static_folder='static')
@@ -28,11 +28,17 @@ def api_new():
  f=request.form;up=request.files.get('file')
  if up is not None and not up.filename:up=None
  if not up and not f.get('url'):return jsonify(error='영상 파일을 올리거나 유튜브 링크를 넣어 주세요.'),400
+ length,width=f.get('length'),f.get('width')
+ if not f.get('venue') and (length or width):
+  try:
+   length,width=float(length),float(width)
+   if not np.isfinite([length,width]).all() or min(length,width)<=0:raise ValueError
+  except (TypeError,ValueError):return jsonify(error='구장 크기를 입력하려면 실제 길이와 폭을 모두 적어 주세요.'),400
  cfg={'url':f.get('url') or None,'start':f.get('start',''),'end':f.get('end',''),
       'number':f.get('number','').strip(),'name':f.get('name','').strip(),
       'team':{'club':f.get('team_club',''),'squad':f.get('team_squad',''),'color':f.get('team_color','blue')},
       'opp':{'club':f.get('opp_club',''),'squad':f.get('opp_squad',''),'color':f.get('opp_color','yellow')},
-      'event':f.get('event','goal'),'venue':f.get('venue') or None,'length':f.get('length') or 100,'width':f.get('width') or 65,
+      'event':f.get('event','goal'),'venue':f.get('venue') or None,'length':length,'width':width,
       'show_clock':f.get('show_clock')=='on','clock_start':f.get('clock','').strip()}
  j=pipeline.new_job(cfg,up);return jsonify(id=j.id)
 
@@ -47,7 +53,7 @@ def api_frame(jid,fi):
  j=job_or_404(jid);F=j.frames();fi=min(max(fi,0),len(F)-1);im=np.ascontiguousarray(F[fi]).copy();ov=request.args.get('ov','')
  if 'p' in ov:
   C=j.calib()
-  if C is not None:
+  if C is not None and C.supports(fi):
    for l in pitch.model_lines(C.meta):
     p=C.to_img(fi,l);ok=np.isfinite(p).all(1)&(np.abs(p).max(1)<6000)
     if ok.sum()>1:cv2.polylines(im,[np.int32(p[ok])],False,(60,60,255),3,cv2.LINE_AA)
@@ -88,14 +94,39 @@ def api_calib(jid):
  if b.get('action')=='confirm':
   c=dict(j.state.get('calib') or {});c['confirmed']=True;j.set(calib=c);return jsonify(ok=True)
  if b.get('action')=='points':
-  cp=j.state.get('calib_points',{});cp[str(int(b['frame']))]=b['points'];j.set(calib_points=cp)
   try:cal=pipeline.manual_calib(jid,int(b['frame']),b['points'])
   except ValueError as e:return jsonify(error=str(e)),400
-  return jsonify(ok=True,score=cal['score'])
+  return jsonify(ok=True,score=cal['score'],coverage=float(np.mean(cal['valid'])))
  if b.get('action')=='save_spot':
   vid=b.get('venue') or j.state['cfg'].get('venue') or 'venue'
   pipeline.save_spot(jid,vid,b.get('name') or pipeline.venue_meta(j).get('name','구장'));return jsonify(ok=True)
  return jsonify(error='?'),400
+
+@app.get('/api/job/<jid>/field/<int:fi>')
+def api_field_frame(jid,fi):
+ j=job_or_404(jid);C=j.calib()
+ if C is None or not C.supports(fi):
+  return jsonify(frame=fi,valid=False)
+ H=C.img_from_pitch(fi);inverse=np.linalg.inv(H)
+ result={'frame':fi,'time_s':fi/video.FPS,'valid':True,'mode':C.mode,
+         'confirmed':bool((j.state.get('calib') or {}).get('confirmed')),
+         'length_m':C.meta['length'],'width_m':C.meta['width'],
+         'projection_model':'per_frame' if C.matrix is not None else 'nearest_reference',
+         'field_to_image':H.tolist(),'image_to_field':inverse.tolist()}
+ if C.paint_score is not None:result['paint_support']=float(C.paint_score[fi])
+ if 'x' in request.args or 'y' in request.args:
+  x=request.args.get('x',type=float);y=request.args.get('y',type=float)
+  if x is None or y is None or not (0<=x<1920 and 0<=y<1080):
+   return jsonify(error='1920×1080 프레임의 x와 y를 입력해 주세요.'),400
+  world=inverse@[x,y,1.]
+  if abs(world[2])>1e-8:
+   p=world[:2]/world[2]
+   if 0<=p[0]<=C.meta['length'] and abs(p[1])<=C.meta['width']/2:
+    result['ground_xy_m']=p.tolist()
+    jacobian=(inverse[:2,:2]-p[:,None]*inverse[2,:2])/world[2]
+    result['local_m_per_px']=float(np.linalg.norm(jacobian,ord=2))
+  result.setdefault('ground_xy_m',None)
+ return jsonify(result)
 
 @app.post('/api/job/<jid>/render')
 def api_render(jid):

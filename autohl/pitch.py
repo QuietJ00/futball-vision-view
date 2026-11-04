@@ -1,6 +1,6 @@
 import glob,json,os
 import numpy as np,cv2
-from .camera import warp
+from .camera import motion_segments, warp
 # Pitch model: X along the pitch from the left goal line (metres), Y across it, +Y toward the
 # camera's touchline. A venue preset keeps a few reference frames from a calibrated clip with
 # their pitch->image homographies, so a new clip shot from the same spot calibrates itself.
@@ -72,16 +72,24 @@ def _feats(img,sky):
  if _sift is None:_sift=cv2.SIFT_create(4000,contrastThreshold=.02)
  g=cv2.cvtColor(np.ascontiguousarray(img),cv2.COLOR_BGR2GRAY)
  return _sift.detectAndCompute(g,turf_mask(img,sky))
-def match_ref(img,ref,sky):
- # Pitch-plane homography from a reference frame to this frame. Returns (H, inliers).
- a=_feats(ref,sky);b=_feats(img,sky)
+def _match_features(a,b):
+ # Restrict matches to the playing surface and require support over an area, rather than
+ # accepting a homography estimated along a single painted stripe.
  if a[1] is None or b[1] is None or len(a[0])<20 or len(b[0])<20:return None,0
  mm=cv2.BFMatcher(cv2.NORM_L2).knnMatch(a[1],b[1],k=2)
  good=[m for m,n in (x for x in mm if len(x)==2) if m.distance<.8*n.distance]
  if len(good)<20:return None,0
  pa=np.float32([a[0][m.queryIdx].pt for m in good]);pb=np.float32([b[0][m.trainIdx].pt for m in good])
  Hm,ok=cv2.findHomography(pa,pb,cv2.RANSAC,3.,maxIters=8000,confidence=.999)
- return (Hm,int(ok.sum())) if Hm is not None else (None,0)
+ if Hm is None or not np.isfinite(Hm).all():return None,0
+ use=ok.ravel().astype(bool);n=int(use.sum())
+ if n<MIN_INL or n/len(good)<.35:return None,n
+ for pts in (pa[use],pb[use]):
+  if cv2.contourArea(cv2.convexHull(pts))<15000:return None,n
+ return Hm,n
+
+def match_ref(img,ref,sky):
+ return _match_features(_feats(ref,sky),_feats(img,sky))
 
 def _line_kernels(L=31,off=4,n=24):
  # Oriented centre-surround bars: a thin bright line along the kernel scores high, scattered
@@ -157,8 +165,8 @@ def refine(img,Hp,meta,sky=0,iters=25,caps=(12,)):
 MIN_SCORE=.5   # share of model lines on painted white below which a calibration is not trusted
 AGREE_PX=20    # two calibrations agree when the pitch grid lands within this many pixels
 GRID=np.array([[x,y] for x in range(0,101,5) for y in range(-30,31,5)],float)
-def _gap(H1,H2,sky):
- p1,p2=warp(GRID,H1),warp(GRID,H2);ok=(p1[:,1]>sky)&(p1[:,1]<1080)&(p1[:,0]>0)&(p1[:,0]<1920)&np.isfinite(p2).all(1)
+def _gap(H1,H2,sky,grid=GRID):
+ p1,p2=warp(grid,H1),warp(grid,H2);ok=(p1[:,1]>sky)&(p1[:,1]<1080)&(p1[:,0]>0)&(p1[:,0]<1920)&np.isfinite(p2).all(1)
  return float(np.median(np.linalg.norm(p1-p2,axis=1)[ok])) if ok.sum()>=6 else np.inf
 def chain(CUM,a,b,Ha):
  # Calibration of frame a carried into frame b through the camera chain.
@@ -208,31 +216,50 @@ def calib_score(img,C,fi,sky=0):
   if ok.sum()<5:continue
   q=p[ok].astype(int);hit+=int((dt[q[:,1],q[:,0]]<4).sum());tot+=len(q)
  return hit/tot if tot else 0.
-def auto(F,CUM,vid,sky,log=print,every=30,boxes=None):
- # Match sampled clip frames against the venue's reference frames, on pitch-surface features.
- # Every strong match becomes a base on its own (frames between blend the two nearest), so a
- # long pan is pinned to the painted lines at many points instead of trusting the chain.
- # A clip shot from somewhere else finds no strong matches and falls back to manual clicks.
- meta=venues()[vid];refs=venue_refs(vid);cand={}
- for fi in sorted(set(list(range(0,len(F),every))+[len(F)-1])):
-  for rimg,rH in refs:
-   Hm,n=match_ref(F[fi],rimg,sky)
-   if Hm is None or n<MIN_INL:continue
-   Hk=Hm@rH;Hk=Hk/Hk[2,2]
-   if fi not in cand or n>cand[fi][1]:cand[fi]=(Hk,n)
-  log(f'경기장 맞추는 중 {fi}/{len(F)}')
+MAX_ANCHOR_AGE=45  # frames at 30 fps
+ANCHOR_AGREEMENT=12  # pixels at 1080p
+
+def anchor_coverage(bases,CUM,segments,sky,meta):
+ # Reacquisition starts a new calibration on each side of a broken camera link.
+ # Between competing anchors, suppress coordinates when the camera motion cannot reconcile them.
+ valid=np.zeros(len(CUM),dtype=bool)
+ grid=GRID*np.array([meta['length']/100,meta['width']/60])
+ for k,_,_,_ in bases:
+  a=max(0,k-MAX_ANCHOR_AGE);b=min(len(CUM),k+MAX_ANCHOR_AGE+1)
+  valid[a:b]|=segments[a:b]==segments[k]
+ for (a,H1,_,_),(b,H2,_,_) in zip(bases,bases[1:]):
+  if segments[a]==segments[b] and 1<b-a<=2*MAX_ANCHOR_AGE:
+   mid=(a+b)//2
+   p=chain(CUM,a,mid,H1);q=chain(CUM,b,mid,H2)
+   if max(_gap(p,q,sky,grid),_gap(q,p,sky,grid))>ANCHOR_AGREEMENT:
+    valid[a+1:b]=False
+ return valid
+
+def auto(F,CUM,vid,sky,log=print,every=30,boxes=None,inliers=None):
+ meta=venues()[vid]
+ refs=[(_feats(img,0),H) for img,H in venue_refs(vid) if img is not None]
+ if not refs:return None
+ segments=motion_segments(inliers,len(F))
+ breaks=np.flatnonzero(np.diff(segments))+1
+ samples=sorted(set(range(0,len(F),every))|{len(F)-1}|set(breaks)|set(breaks-1))
  bases=[]
- for fi,(H,n) in sorted(cand.items()):
-  # A camera a step away from the reference spot leaves the match tens of pixels off; pull it
-  # onto this frame's paint, keeping the snap only when it clearly fits better and stays close.
-  s0=line_score(F[fi],H,meta,sky);Hr=refine(F[fi],H,meta,sky,iters=40);Hr=Hr/Hr[2,2];s1=line_score(F[fi],Hr,meta,sky)
-  if s1>s0+.02 and _gap(H,Hr,sky)<40:H,s0=Hr,s1
-  if s0>=MIN_SCORE*.8:bases.append((fi,H,n,s0))
+ for fi in samples:
+  feat=_feats(F[fi],sky)
+  best=None
+  for ref,rH in refs:
+   motion,n=_match_features(ref,feat)
+   if motion is None:continue
+   H=motion@rH
+   if abs(H[2,2])<1e-9:continue
+   H=H/H[2,2]
+   score=line_score(F[fi],H,meta,sky)
+   if score>=MIN_SCORE*.8 and (best is None or n>best[2]):best=(fi,H,n,score)
+  if best is not None:bases.append(best)
+  log(f'경기장 맞추는 중 {fi+1}/{len(F)}')
  if not bases:return None
- # Keep the best-fitting matches as seeds and track the lines between and beyond them.
- best=sorted(bases,key=lambda b:-b[3])[:4]
- bases=track_lines(F,CUM,{b[0]:b[1] for b in best},meta,sky,log=log,boxes=boxes)
- return {'bases':bases,'meta':meta,'venue':vid,'score':float(np.mean([x[3] for x in bases])),'mode':'auto'}
+ valid=anchor_coverage(bases,CUM,segments,sky,meta)
+ return {'bases':bases,'meta':meta,'venue':vid,'score':float(np.mean([b[3] for b in bases])),
+         'mode':'auto','valid':valid,'segments':segments}
 
 def from_points(frame,clicks,meta):
  # Manual calibration: clicks = [(landmark name, (x, y)), ...], at least 4.
@@ -242,28 +269,55 @@ def from_points(frame,clicks,meta):
  Hp,_=cv2.findHomography(src,dst,0 if len(src)==4 else cv2.RANSAC,8.)
  if Hp is None:raise ValueError('기준점으로 경기장을 계산하지 못했어요. 점 위치를 다시 확인해 주세요.')
  return Hp/Hp[2,2]
-def manual(F,CUM,frame,clicks,meta,sky,log=print):
+def manual(F,CUM,frame,clicks,meta,sky,log=print,inliers=None):
+ if not 0<=frame<len(F):raise ValueError('영상 안의 프레임을 선택해 주세요.')
  Hp=from_points(frame,clicks,meta);Hr=refine(F[frame],Hp,meta,sky);Hr=Hr/Hr[2,2]
  # Keep the snapped fit only when it stays near the clicked one (it can latch onto other paint).
  if _gap(Hp,Hr,sky)<AGREE_PX*1.5 and line_score(F[frame],Hr,meta,sky)>line_score(F[frame],Hp,meta,sky):Hp=Hr
- bases=spread(F,CUM,{int(frame):Hp},meta,sky,log=log)
- return {'bases':bases,'meta':meta,'venue':meta.get('id'),'score':float(np.mean([x[3] for x in bases])),'mode':'manual'}
+ segments=motion_segments(inliers,len(F));valid=segments==segments[frame]
+ a,b=np.flatnonzero(valid)[[0,-1]]
+ local=spread(F[a:b+1],CUM[a:b+1],{int(frame-a):Hp},meta,sky,log=log)
+ bases=[(k+a,H,n,s) for k,H,n,s in local]
+ return {'bases':bases,'meta':meta,'venue':meta.get('id'),'score':float(np.mean([x[3] for x in bases])),
+         'mode':'manual','valid':valid,'segments':segments}
 
 class Calib:
  def __init__(self,cal,CUM):
   self.CUM,self.meta=CUM,cal['meta'];self.ks=np.array([b[0] for b in cal['bases']])
   self.M=[np.linalg.inv(CUM[k])@b[1] for k,b in zip(self.ks,cal['bases'])]  # pitch -> frame-0 image, per base
+  self.valid=cal.get('valid',np.ones(len(CUM),dtype=bool))
+  self.matrix=cal.get('matrix')
+  self.paint_score=cal.get('paint_score')
+  self.mode=cal.get('mode')
+  self.anchor_age=MAX_ANCHOR_AGE if 'valid' in cal and cal.get('mode')=='auto' else None
+  segments=cal.get('segments',np.zeros(len(CUM),dtype=int))
+  self.segments=segments
+  self.groups={s:np.flatnonzero(segments[self.ks]==s) for s in np.unique(segments[self.ks])}
+ def supports(self,start,end=None):
+  end=start if end is None else end
+  return bool(0<=start<=end<len(self.valid) and self.valid[start:end+1].all()
+              and self.segments[start]==self.segments[end])
  def _pair(self,fi):
-  j=np.searchsorted(self.ks,fi)
-  if j<=0:return [(0,1.)]
-  if j>=len(self.ks):return [(len(self.ks)-1,1.)]
-  a,b=self.ks[j-1],self.ks[j];t=(fi-a)/(b-a);return [(j-1,1-t),(j,t)]
+  group=self.groups[self.segments[fi]]
+  if self.anchor_age is not None:group=group[np.abs(self.ks[group]-fi)<=self.anchor_age]
+  ks=self.ks[group];j=np.searchsorted(ks,fi)
+  if j<len(ks) and ks[j]==fi:return [(group[j],1.)]
+  if j<=0:return [(group[0],1.)]
+  if j>=len(ks):return [(group[-1],1.)]
+  a,b=ks[j-1],ks[j];t=(fi-a)/(b-a);return [(group[j-1],1-t),(group[j],t)]
  def img_from_pitch(self,fi,i=None):
-  if i is None:i=self._pair(fi)[0][0] if len(self._pair(fi))==1 else min(self._pair(fi),key=lambda x:-x[1])[0]
+  if not self.supports(fi):raise ValueError('이 프레임의 경기장 좌표를 확인할 수 없어요.')
+  if self.matrix is not None:
+   return self.matrix[fi]
+  if i is None:i=max(self._pair(fi),key=lambda pair:pair[1])[0]
   M=self.CUM[fi]@self.M[i];return M/M[2,2]
  def to_pitch(self,fi,pts):
+  if not self.supports(fi):return np.full((len(pts),2),np.nan)
+  if self.matrix is not None:return warp(pts,np.linalg.inv(self.matrix[fi]))
   return sum(w*warp(pts,np.linalg.inv(self.img_from_pitch(fi,i))) for i,w in self._pair(fi))
  def to_img(self,fi,pts):
+  if not self.supports(fi):return np.full((len(pts),2),np.nan)
+  if self.matrix is not None:return warp(pts,self.matrix[fi])
   return sum(w*warp(pts,self.img_from_pitch(fi,i)) for i,w in self._pair(fi))
 
 def save_venue(vid,name,meta,F,CUM,cal,frames):
