@@ -16,12 +16,14 @@ from scipy.optimize import least_squares
 from scipy.spatial import cKDTree
 
 from . import camfit, field_solver as fs, pitch
-from .camera import warp
+from .camera import distort, pinhole_motion, undistort, warp
 
 MAX_RMS_PX = 15.         # a fit worse than this has failed
 BAD_LINE_PX = 12.        # a named line further off than this is treated as misnamed
 CHAIN_WEIGHT = .3        # px of residual per milliradian of disagreement with the camera chain
 MIN_LINES = 4
+FAR_TOUCHLINE = 2        # index in pitch.model_segments
+CURVES = (17, 18, 19)    # centre circle and penalty arcs
 
 
 class Calibration:
@@ -57,26 +59,6 @@ class Calibration:
     def to_pitch(self, frame, points):
         return warp(undistort(np.asarray(points, float), self.k1, self._focal(frame)),
                     np.linalg.inv(self.img_from_pitch(frame)))
-
-
-def distort(p, k1, focal):
-    if not k1:
-        return p
-    x = (p-fs.CENTRE)/focal
-    return fs.CENTRE+x*(1+k1*(x*x).sum(1, keepdims=True))*focal
-
-
-def undistort(p, k1, focal):
-    if not k1:
-        return p
-    d = (p-fs.CENTRE)/focal
-    radius = np.linalg.norm(d, axis=1)
-    x = radius.copy()
-    # Newton on x(1+k1 x^2)=r: a plain fixed-point loop diverges toward the frame corners.
-    for _ in range(8):
-        x = x-(x*(1+k1*x*x)-radius)/np.maximum(1+3*k1*x*x, .2)
-    scale = np.where(radius > 1e-9, x/np.maximum(radius, 1e-9), 1.)
-    return fs.CENTRE+d*scale[:, None]*focal
 
 
 def _features(meta):
@@ -430,6 +412,56 @@ def anchored(calibration, observations, min_lines=4):
         solid = [max(keys, key=lambda k: sum(len(l['points']) for l in observations[k]))]
     calibration.keys, calibration.H = np.array(solid), {k: calibration.H[k] for k in solid}
     return calibration
+
+
+def named_paint(c, F, boxes, frames, meta, gate=1.2):
+    """Name the paint a working calibration can see, as input for fit_shared.
+
+    Curves never form straight strokes, so the centre circle and penalty arcs are named from raw
+    paint pixels. Without them nothing ties the far side of a wide view to the box it was fitted
+    on, and the circle slides as the camera turns.
+    """
+    features = _features(meta)
+    named = {}
+    for k in frames:
+        found = boxes[k] if boxes is not None else np.empty((0, 5))
+        strokes, lawn, loose = fs._strokes(F[k], found, False)
+        lines = []
+        points = fs._sample(strokes, 8)
+        if len(points):
+            ground = np.nan_to_num(c.to_pitch(k, points), nan=1e6)
+            distance = np.stack([f[0].query(ground)[0] for f in features], 1)
+            nearest, close = distance.argmin(1), distance.min(1) < 1.
+            for segment in np.unique(nearest[close]):
+                group = points[close & (nearest == segment)]
+                if len(group) >= 6 and segment != FAR_TOUCHLINE:
+                    lines.append({'segment': int(segment), 'points': group, 'confidence': 1.})
+        y, x = np.nonzero(loose & lawn)
+        paint = np.c_[x, y]*2.
+        if len(paint):
+            paint = paint[::max(1, len(paint)//4000)]
+            ground = np.nan_to_num(c.to_pitch(k, paint), nan=1e6)
+            for segment in CURVES:
+                near = paint[features[segment][0].query(ground)[0] < gate]
+                if len(near) >= 25:
+                    lines.append({'segment': segment, 'points': near[::max(1, len(near)//120)], 'confidence': .7})
+        edge = fs._far_edge(F[k], found)
+        if len(edge):
+            lines.append({'segment': FAR_TOUCHLINE, 'points': fs._sample(edge, 16), 'confidence': 1.})
+        named[k] = lines
+    return named
+
+
+def refine_camera(c, F, cumulative, meta, boxes, rounds=2, step=15):
+    """One camera and lens for the clip, from paint named by a working calibration, or None."""
+    frames = [k for k in range(0, len(F), step) if c.supports(k)]
+    fitted, position = c, None
+    for _ in range(rounds):
+        fitted = fit_shared(named_paint(fitted, F, boxes, frames, meta), cumulative, meta)
+        if fitted is None:
+            return None
+    fitted.CUM = pinhole_motion(cumulative, fitted.k1, fitted.focal)
+    return fitted
 
 
 def calibrate(observations, cumulative, meta):

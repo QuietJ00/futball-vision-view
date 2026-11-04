@@ -7,12 +7,13 @@ import os
 import cv2
 import numpy as np
 
-from . import field_solver, pitch
-from .camera import warp
+from . import field_solver, hybrid_calib, pitch
+from .camera import distort, undistort, warp
 
 MANUAL_MIN_PAINT = .19
 MIN_AXIS_PAINT = .24
 CONFLICT_MARGIN = .04
+MAX_TURF_SLIP = 1.  # pixels per frame a refined camera may move the lines over the turf
 ALONG_LINES = [1, 2, 5, 7, 8, 10, 11, 13, 14, 16]
 ACROSS_LINES = [0, 3, 4, 6, 9, 12, 15]
 
@@ -447,6 +448,39 @@ def _project_map(F, CUM, meta, segments, anchors, sky, mode, log):
             'matrix': matrices, 'paint_score': quality, 'score': float(np.nanmean(quality))}
 
 
+def turf_slip(matrices, valid, cumulative, k1=0., focal=1.):
+    """Worst pixels per frame that pitch lines move over the turf. The ground does not move, so
+    between frames a line must go exactly where the camera motion carries the turf under it."""
+    y, x = np.mgrid[640:1040:40, 60:1880:60]
+    grid = np.c_[x.ravel(), y.ravel()].astype(float)
+    straight = undistort(grid, k1, focal)
+    worst = 0.
+    for k in np.flatnonzero(valid[:-1] & valid[1:]):
+        ground = warp(straight, np.linalg.inv(matrices[k]))
+        lines = distort(warp(ground, matrices[k+1]), k1, focal)
+        turf = warp(grid, cumulative[k+1] @ np.linalg.inv(cumulative[k]))
+        worst = max(worst, float(np.nanmedian(np.linalg.norm(lines-turf, axis=1))))
+    return worst
+
+
+def _with_one_camera(result, F, cumulative, meta, boxes, log):
+    # Replace frame-by-frame matrices with one camera and lens. Keep the first answer if the fit
+    # fails: it is coarser at the far side of the frame, but it is checked and usable.
+    fitted = hybrid_calib.refine_camera(pitch.Calib(result, cumulative), F, cumulative, meta, boxes)
+    if fitted is None:
+        log('카메라 정밀 보정을 건너뛰었어요.')
+        return result
+    matrices = result['matrix'].copy()
+    for k in np.flatnonzero(result['valid']):
+        H = fitted.img_from_pitch(int(k))
+        matrices[k] = H/H[2, 2]
+    if turf_slip(matrices, result['valid'], cumulative, fitted.k1, fitted.focal) > MAX_TURF_SLIP:
+        log('카메라 정밀 보정이 선을 흔들어서 쓰지 않았어요.')
+        return result
+    log(f'렌즈 왜곡 {fitted.k1:+.2f}, 초점거리 {fitted.focal:.0f} px')
+    return {**result, 'matrix': matrices, 'k1': fitted.k1, 'focal': fitted.focal}
+
+
 def solver_enabled():
     # Experimental: off unless asked for, until it is validated beyond the clips it was tuned on.
     return os.environ.get('AUTOHL_CALIBRATOR') == 'camera'
@@ -493,4 +527,5 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
                     anchors[a], anchors[b] = found[a], found[b]
     if not anchors:
         return None
-    return _project_map(F, cumulative, meta, segments, anchors, sky, mode, log)
+    result = _project_map(F, cumulative, meta, segments, anchors, sky, mode, log)
+    return _with_one_camera(result, F, cumulative, meta, boxes, log) if mode == 'camera' and result else result

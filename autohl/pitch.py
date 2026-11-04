@@ -1,6 +1,6 @@
 import glob,json,os
 import numpy as np,cv2
-from .camera import motion_segments, warp
+from .camera import distort, motion_segments, undistort, warp
 # Pitch model: X along the pitch from the left goal line (metres), Y across it, +Y toward the
 # camera's touchline. A venue preset keeps a few reference frames from a calibrated clip with
 # their pitch->image homographies, so a new clip shot from the same spot calibrates itself.
@@ -295,6 +295,7 @@ class Calib:
   self.matrix=cal.get('matrix')
   self.paint_score=cal.get('paint_score')
   self.mode=cal.get('mode')
+  self.k1,self.focal=float(cal.get('k1',0.)),float(cal.get('focal',1.))  # matrices are pinhole; pixels are not
   self.anchor_age=MAX_ANCHOR_AGE if 'valid' in cal and cal.get('mode')=='auto' else None
   segments=cal.get('segments',np.zeros(len(CUM),dtype=int))
   self.segments=segments
@@ -319,11 +320,11 @@ class Calib:
   M=self.CUM[fi]@self.M[i];return M/M[2,2]
  def to_pitch(self,fi,pts):
   if not self.supports(fi):return np.full((len(pts),2),np.nan)
-  if self.matrix is not None:return warp(pts,np.linalg.inv(self.matrix[fi]))
+  if self.matrix is not None:return warp(undistort(pts,self.k1,self.focal),np.linalg.inv(self.matrix[fi]))
   return sum(w*warp(pts,np.linalg.inv(self.img_from_pitch(fi,i))) for i,w in self._pair(fi))
  def to_img(self,fi,pts):
   if not self.supports(fi):return np.full((len(pts),2),np.nan)
-  if self.matrix is not None:return warp(pts,self.matrix[fi])
+  if self.matrix is not None:return distort(warp(pts,self.matrix[fi]),self.k1,self.focal)
   return sum(w*warp(pts,self.img_from_pitch(fi,i)) for i,w in self._pair(fi))
 
 def save_venue(vid,name,meta,F,CUM,cal,frames):

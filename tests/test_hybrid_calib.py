@@ -28,6 +28,33 @@ class DistortionTest(unittest.TestCase):
         np.testing.assert_allclose(back, points, atol=1e-6)
 
 
+class CalibLensTest(unittest.TestCase):
+    def test_coordinates_survive_the_lens_both_ways(self):
+        H = np.array([[10., 1., 200.], [.5, -6., 700.], [.0001, .0002, 1.]])
+        cal = {'bases': [(0, H, 0, None)], 'meta': sd.META, 'matrix': H[None], 'valid': np.ones(1, bool),
+               'segments': np.zeros(1, int), 'k1': .12, 'focal': 1800.}
+        c = pitch.Calib(cal, np.eye(3)[None])
+        world = np.array([[20., 5.], [60., -12.]])
+        np.testing.assert_allclose(c.to_pitch(0, c.to_img(0, world)), world, atol=1e-3)
+        self.assertGreater(np.linalg.norm(c.to_img(0, world)-warp(world, H)), .5)
+
+
+class TurfSlipTest(unittest.TestCase):
+    def setUp(self):
+        self.motion = np.stack([np.array([[1., 0., 8.*i], [0., 1., 0.], [0., 0., 1.]]) for i in range(6)])
+        self.H = np.array([[10., 1., 200.], [.5, -6., 900.], [.0001, .0002, 1.]])
+        self.valid = np.ones(6, bool)
+
+    def test_lines_carried_by_the_camera_do_not_slip(self):
+        fixed = np.stack([m @ self.H for m in self.motion])
+        self.assertLess(field_geometry.turf_slip(fixed, self.valid, self.motion), .01)
+
+    def test_lines_that_jump_are_measured(self):
+        moved = np.stack([m @ self.H for m in self.motion])
+        moved[3:] = np.array([[1., 0., 5.], [0., 1., 0.], [0., 0., 1.]]) @ moved[3:]
+        self.assertAlmostEqual(field_geometry.turf_slip(moved, self.valid, self.motion), 5., delta=.05)
+
+
 class SyntheticGeometryTest(unittest.TestCase):
     def test_shared_camera_recovers_position_with_named_lines(self):
         clip = sd.make_clip(sd.Scene('t'), 42)

@@ -1,6 +1,33 @@
 import numpy as np,cv2
 MIN_LINK_INLIERS=40
 
+def distort(points,k1,focal):
+ # Pinhole pixels -> lens pixels, one radial term about the image centre.
+ p=np.asarray(points,float)
+ if not k1:return p
+ x=(p-[960.,540.])/focal
+ return np.array([960.,540.])+x*(1+k1*(x*x).sum(1,keepdims=True))*focal
+
+def undistort(points,k1,focal):
+ # Lens pixels -> pinhole pixels. Newton on x(1+k1 x^2)=r: a plain fixed-point loop diverges
+ # toward the frame corners.
+ p=np.asarray(points,float)
+ if not k1:return p
+ d=(p-[960.,540.])/focal;r=np.linalg.norm(d,axis=1);x=r.copy()
+ for _ in range(8):x=x-(x*(1+k1*x*x)-r)/np.maximum(1+3*k1*x*x,.2)
+ return np.array([960.,540.])+d*(np.where(r>1e-9,x/np.maximum(r,1e-9),1.))[:,None]*focal
+
+def pinhole_motion(cum,k1,focal):
+ # Camera motion measured on lens pixels, restated for pinhole pixels link by link.
+ if not k1:return cum
+ y,x=np.mgrid[60:1040:140,60:1880:180];grid=np.c_[x.ravel(),y.ravel()].astype(float);straight=undistort(grid,k1,focal)
+ out=[np.eye(3)]
+ for a,b in zip(cum,cum[1:]):
+  moved=warp(grid,b@np.linalg.inv(a));keep=np.isfinite(moved).all(1)
+  H,_=cv2.findHomography(straight[keep],undistort(moved[keep],k1,focal),0)
+  out.append((H if H is not None else np.eye(3))@out[-1])
+ return np.stack(out)
+
 def motion_segments(inliers,count):
  # inliers[i] measures the link into frame i. Frame 0 has no preceding link.
  segments=np.zeros(count,dtype=int)

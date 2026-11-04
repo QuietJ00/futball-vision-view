@@ -28,11 +28,11 @@ class Job:
   if not os.path.exists(self.f('calib.npz')):return None
   z=np.load(self.f('calib.npz'),allow_pickle=True);meta=json.loads(str(z['meta']))
   cal={'bases':[(int(k),H,0,None) for k,H in zip(z['ks'],z['Hs'])],'meta':meta,'mode':str(z['mode'])}
-  for key in ('valid','segments','matrix','paint_score'):
+  for key in ('valid','segments','matrix','paint_score','k1','focal'):
    if key in z:cal[key]=z[key]
   return pitch.Calib(cal,self.cam()[0])
  def save_calib(self,cal):
-  quality={key:cal[key] for key in ('valid','segments','matrix','paint_score') if key in cal}
+  quality={key:cal[key] for key in ('valid','segments','matrix','paint_score','k1','focal') if key in cal}
   tmp=self.f(f'calib-{uuid.uuid4().hex}.tmp.npz')
   np.savez(tmp,ks=np.array([b[0] for b in cal['bases']]),Hs=np.array([b[1] for b in cal['bases']]),
            meta=json.dumps(cal['meta'],ensure_ascii=False),mode=cal['mode'],**quality)
