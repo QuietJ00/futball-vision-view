@@ -5,6 +5,7 @@ from unittest import mock
 import numpy as np
 
 from autohl import field_geometry, hybrid_calib as hc, pitch, semantic_pitch
+from autohl.camera import warp
 from experiments.hybrid_pitch import synthetic_data as sd
 
 
@@ -50,6 +51,25 @@ class SyntheticGeometryTest(unittest.TestCase):
         self.assertNotIn('model=tripod', c.notes)
         self.assertNotIn('model=shared', c.notes)
         self.assertLess(held_out_error(c, clip), .3)
+
+
+class AnchoredLinesTest(unittest.TestCase):
+    def test_lines_stay_on_the_ground_between_frames(self):
+        clip = sd.make_clip(sd.Scene('t', noise=3.), 42)
+        c = hc.calibrate(clip['observations'], clip['cumulative'], sd.META)
+        y, x = np.mgrid[500:1000:100, 200:1800:200]
+        grid = np.c_[x.ravel(), y.ravel()].astype(float)
+        for frame in range(5, 115, 11):
+            moved = clip['cumulative'][frame+1] @ np.linalg.inv(clip['cumulative'][frame])
+            carried = warp(grid, moved)
+            on_ground = warp(grid, c.img_from_pitch(frame+1) @ np.linalg.inv(c.img_from_pitch(frame)))
+            self.assertLess(np.median(np.linalg.norm(on_ground-carried, axis=1)), .5)
+
+    def test_thin_keys_do_not_steer_the_lines(self):
+        calibration = hc.Calibration([0, 30, 60], {0: np.eye(3), 30: np.eye(3), 60: np.eye(3)}, None, sd.META)
+        line = {'segment': 1, 'points': np.zeros((5, 2))}
+        kept = hc.anchored(calibration, {0: [line]*2, 30: [line]*5, 60: [line]*6})
+        self.assertEqual(list(kept.keys), [30, 60])
 
 
 class SemanticLinesTest(unittest.TestCase):

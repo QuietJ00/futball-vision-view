@@ -91,6 +91,41 @@ def _strokes(image, boxes, yellow):
     return segments, lawn, relative >= 1.5
 
 
+def _far_edge(image, boxes):
+    """The far touchline, found as the turf edge below a red running track.
+
+    Paint at the very edge of the turf is thin at this distance and sits on the lawn mask's
+    border, so the paint search misses it, and the far side of the pitch then floats freely.
+    Short pieces, because the edge bows slightly across a wide lens.
+    """
+    hue, sat, val = cv2.split(cv2.cvtColor(image, cv2.COLOR_BGR2HSV))
+    red = ((hue < 12) | (hue > 168)) & (sat > 70) & (val > 45)
+    red = cv2.morphologyEx(np.uint8(red)*255, cv2.MORPH_OPEN, np.ones((3, 9), np.uint8)) > 0
+    points = []
+    for x in range(20, 1900, 12):
+        rows = np.flatnonzero(red[450:950, x])+450
+        if len(rows):
+            strips = [g for g in np.split(rows, np.flatnonzero(np.diff(rows) > 4)+1) if 4 <= len(g) <= 60]
+            if strips:
+                points.append((x, strips[0][-1]+1))
+    points = np.array(points, float).reshape(-1, 2)
+    for x1, y1, x2, y2, *_ in boxes:
+        points = points[~((points[:, 0] > x1-4) & (points[:, 0] < x2+4) & (points[:, 1] > y1-4) & (points[:, 1] < y2+4))]
+    if len(points) < 20:
+        return np.empty((0, 4))
+    for _ in range(3):
+        curve = np.polyfit(points[:, 0], points[:, 1], 2)
+        error = np.abs(np.polyval(curve, points[:, 0])-points[:, 1])
+        points = points[error < max(4., 2.5*np.median(error))]
+        if len(points) < 20:
+            return np.empty((0, 4))
+    pieces = []
+    for part in np.array_split(points, 4):
+        if len(part) >= 5 and np.ptp(part[:, 0]) > 120:
+            pieces.append(np.r_[part[0], part[-1]])
+    return np.array(pieces).reshape(-1, 4)
+
+
 def _people(boxes, to_base):
     # Foot points and box heights of whole people, in the window's reference frame.
     boxes = np.asarray(boxes, float).reshape(-1, 5)
@@ -364,11 +399,19 @@ def _refine_free(p, window, model, meta):
     return p
 
 
-def _refine_angles(p, points, model, free_focal=True):
+def _with_far_edge(near, lines, far, meta):
+    # The edge is known to be the far touchline, so it counts however far off the model sits.
+    # Paint is only tied within a metre or so, which could never pull that line back.
+    if not len(far):
+        return near, lines
+    return np.vstack((near, far)), np.vstack((lines, np.tile([0., 1., meta['width']/2], (len(far), 1))))
+
+
+def _refine_angles(p, points, model, free_focal=True, far=()):
     # Camera position held: rotation, and zoom if allowed, may still change.
     n = 4 if free_focal else 3
     for limit in (2., 1.3, .8, .5):
-        near, lines = _associate(p, points, model, limit)
+        near, lines = _with_far_edge(*_associate(p, points, model, limit), far, model['meta'])
         if len(near) < 12:
             break
         p = np.r_[least_squares(lambda v: _line_error(np.r_[v, p[n:]], near, lines), p[:n],
@@ -441,12 +484,16 @@ def _rate(p, window, model, meta):
 
 def _read_window(F, cumulative, boxes, frames, base):
     window = {'frames': {}, 'base': base}
-    white, every, feet, seen = [], [], [], []
+    white, every, feet, seen, far = [], [], [], [], []
     for k in frames:
         to_base = cumulative[base] @ np.linalg.inv(cumulative[k])
         found = boxes[k] if boxes is not None else np.empty((0, 5))
         strokes, lawn, loose = _strokes(F[k], found, False)
         coloured, _, _ = _strokes(F[k], found, True)
+        edge = _far_edge(F[k], found)
+        strokes = np.vstack((strokes, edge))
+        if len(edge):
+            far.append(warp(_sample(edge, 16), to_base))
         if len(strokes):
             white.append(warp(strokes.reshape(-1, 2), to_base).reshape(-1, 4))
         if len(coloured):
@@ -458,6 +505,7 @@ def _read_window(F, cumulative, boxes, frames, base):
     window['strokes'] = np.vstack(white) if white else np.empty((0, 4))
     window['every'] = np.vstack(every) if every else np.empty((0, 4))
     window['feet'], window['seen'] = np.vstack(feet), np.concatenate(seen)
+    window['far'] = np.vstack(far) if far else np.empty((0, 2))
     return window
 
 
@@ -615,14 +663,15 @@ def _solve_keys(windows, group, cumulative, focal, fixed_focal, model):
             p = np.r_[start[:3], np.log(focal), position]
             if len(windows[w]['strokes']) >= 2:
                 p = _search_angles(p, template, _sample(windows[w]['strokes'], 11))
-                p = _refine_angles(p, points[w], model)
+                p = _refine_angles(p, points[w], model, far=windows[w]['far'])
             keys[w] = p
         tied = []
         for w, p in keys.items():
             if len(points[w]):
                 near, lines = _associate(p, points[w], model, 1.)
+                near, lines = _with_far_edge(near[::3], lines[::3], windows[w]['far'], model['meta'])
                 if len(near) >= 12:
-                    tied.append((p, near[::3], lines[::3]))
+                    tied.append((p, near, lines))
         if not tied:
             break
         if fixed_focal:
@@ -635,7 +684,7 @@ def _solve_keys(windows, group, cumulative, focal, fixed_focal, model):
                 np.r_[position, np.log(focal)], loss='soft_l1', f_scale=2.,
                 x_scale=[.5, .5, .2, .03], max_nfev=20).x
             position, focal = shared[:3], float(np.exp(shared[3]))
-    return {w: _refine_angles(np.r_[p[:3], np.log(focal), position], points[w], model) if len(points[w])
+    return {w: _refine_angles(np.r_[p[:3], np.log(focal), position], points[w], model, far=windows[w]['far']) if len(points[w])
             else np.r_[p[:3], np.log(focal), position] for w, p in keys.items()}, position, focal
 
 

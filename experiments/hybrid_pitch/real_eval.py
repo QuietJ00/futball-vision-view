@@ -187,8 +187,11 @@ def auto_labels(c, F, D, keys):
             nearest, close = distance.argmin(1), distance.min(1) < 1.
             for segment in np.unique(nearest[close]):
                 group = points[close & (nearest == segment)]
-                if len(group) >= 6:
+                if len(group) >= 6 and segment != 2:
                     lines.append({'segment': int(segment), 'points': group, 'confidence': 1.})
+        edge = fs._far_edge(F[k], D[k])
+        if len(edge):
+            lines.append({'segment': 2, 'points': fs._sample(edge, 16), 'confidence': 1.})
         out[k] = lines
     return out
 

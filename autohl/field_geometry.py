@@ -373,6 +373,16 @@ def _project_map(F, CUM, meta, segments, anchors, sky, mode, log):
         sources = list(dict.fromkeys(a for a in (previous, following) if a is not None))
         proposals = [pitch.chain(CUM, a, k, anchors[a]) for a in sources]
         H = proposals[0]
+        if len(proposals) == 2 and mode == 'camera':
+            # Both keys are trusted and agree to within field_solver.MAX_KEY_GAP. Camera motion
+            # alone drifts over a long pan, so ease from one to the other across the whole
+            # stretch: the correction is too slow to see, and the lines stay on the turf.
+            t = (k-sources[0])/(sources[1]-sources[0])
+            H = pitch.blend(proposals[0], proposals[1], t)
+            H = H/H[2, 2]
+            checks[k] = (H, _paint_check(F[k], H, lines, sky)[0])
+            log(f'페인트선 정합 확인 {k+1}/{N}')
+            continue
         if len(proposals) == 2:
             H2 = proposals[1]
             gap = max(pitch._gap(H, H2, sky, grid), pitch._gap(H2, H, sky, grid))

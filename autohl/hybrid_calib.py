@@ -415,8 +415,29 @@ def fit_tripod(observations, cumulative, meta, start=None):
     return _result(keys, cameras, cumulative, meta, k1, float(np.median(errors)), f'offset={x[6]:.3f}')
 
 
+def anchored(calibration, observations, min_lines=4):
+    """Drop keys too thin to trust, so the lines ease between solid keys instead of wandering.
+
+    Keys with few lines disagree by far more than the camera moved. Between the remaining keys
+    the small difference is spread over the whole stretch. A moving camera keeps every key:
+    there the difference is real.
+    """
+    if calibration is None or 'model=moving' in calibration.notes or 'model=homography' in calibration.notes:
+        return calibration
+    keys = [int(k) for k in calibration.keys]
+    solid = [k for k in keys if len(observations[k]) >= min_lines]
+    if not solid:
+        solid = [max(keys, key=lambda k: sum(len(l['points']) for l in observations[k]))]
+    calibration.keys, calibration.H = np.array(solid), {k: calibration.H[k] for k in solid}
+    return calibration
+
+
 def calibrate(observations, cumulative, meta):
-    """Use the strictest camera model the clip still fits; fall back when it stops fitting."""
+    """The strictest camera model the clip still fits, tied to the ground through one key."""
+    return anchored(_choose(observations, cumulative, meta), observations)
+
+
+def _choose(observations, cumulative, meta):
     shared = fit_shared(observations, cumulative, meta)
     free = fit_homographies(observations, cumulative, meta)
     if shared is None:
