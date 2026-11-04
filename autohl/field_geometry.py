@@ -1,12 +1,13 @@
-"""Recover a pitch-plane homography from paint, without a venue photograph."""
+"""Map a clip onto the pitch: automatic key frames or user marks, checked against paint."""
 
 from functools import lru_cache
 from itertools import combinations
+import os
 
 import cv2
 import numpy as np
 
-from . import pitch
+from . import field_solver, pitch
 from .camera import warp
 
 MANUAL_MIN_PAINT = .19
@@ -377,7 +378,8 @@ def _project_map(F, CUM, meta, segments, anchors, sky, mode, log):
             gap = max(pitch._gap(H, H2, sky, grid), pitch._gap(H2, H, sky, grid))
             if gap <= 16:
                 t = (k-sources[0])/(sources[1]-sources[0])
-                H = (1-t)*H + t*H2
+                H = pitch.blend(H, H2, t)
+                H = H/H[2, 2]
             else:
                 # Opposite parts of a pan may expose different paint. Select a conflicting
                 # projection only if the current image gives it independent support.
@@ -389,12 +391,13 @@ def _project_map(F, CUM, meta, segments, anchors, sky, mode, log):
                     continue
                 H = proposals[winner]
         score, axis = _paint_check(F[k], H, lines, sky)
-        minimum = .46 if mode == 'geometry' else MANUAL_MIN_PAINT
+        minimum = .46 if mode == 'geometry' else MANUAL_MIN_PAINT  # 'camera' and 'manual' share it
         if (score < minimum or axis < MIN_AXIS_PAINT) and k not in anchors:
             continue
         # Refinement has a small trust region, as distant parallel markings can otherwise
         # lure the result off its validated world geometry.
-        if k not in anchors:
+        # A solved camera is already held to the whole clip; a per-frame fit would only add jitter.
+        if k not in anchors and mode != 'camera':
             refined = pitch.refine(F[k], H, meta, sky, iters=12)
             if pitch._gap(H, refined, sky, grid) <= 7:
                 new_score, new_axis = _paint_check(F[k], refined, lines, sky)
@@ -417,7 +420,7 @@ def _project_map(F, CUM, meta, segments, anchors, sky, mode, log):
             continue
         for k in range(a+1, b):
             t = (k-a)/(b-a)
-            matrices[k] = (1-t)*pitch.chain(CUM, a, k, H1) + t*pitch.chain(CUM, b, k, H2)
+            matrices[k] = pitch.blend(pitch.chain(CUM, a, k, H1), pitch.chain(CUM, b, k, H2), t)
             valid[k], quality[k] = True, min(s1, s2)
     indices = np.flatnonzero(valid)
     bad = indices[~np.isfinite(matrices[indices]).all(axis=(1, 2))
@@ -434,9 +437,14 @@ def _project_map(F, CUM, meta, segments, anchors, sky, mode, log):
             'matrix': matrices, 'paint_score': quality, 'score': float(np.nanmean(quality))}
 
 
+def solver_enabled():
+    # Experimental: off unless asked for, until it is validated beyond the clips it was tuned on.
+    return os.environ.get('AUTOHL_CALIBRATOR') == 'camera'
+
+
 def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
               seed_homographies=None, log=print):
-    """Solve from visible paint, optionally starting from user-identified painted landmarks."""
+    """Solve the camera automatically, or from user-identified painted landmarks when given."""
     from .camera import motion_segments
 
     segments = motion_segments(inliers, len(F))
@@ -447,6 +455,12 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
             raise ValueError('영상 안의 프레임을 선택해 주세요.')
         anchors[k] = _fit_points(meta, k, points)
     mode = 'manual' if anchors else 'geometry'
+    if not anchors and solver_enabled():
+        for segment in np.unique(segments):
+            frames = np.flatnonzero(segments == segment)
+            if len(frames) >= 2:
+                anchors.update(field_solver.solve(F, cumulative, meta, boxes, frames, log=log) or {})
+        mode = 'camera' if anchors else mode
     if not anchors:
         # Try several views on each connected shot. Failure is explicit and cannot become
         # a geometry result merely because a single candidate scored above a threshold.

@@ -1,0 +1,595 @@
+{
+ "stand": {
+  "qoqn-1309-field": [
+   {
+    "method": "A_hand",
+    "seconds": 0.0009739398956298828,
+    "status": "ok",
+    "coverage": 0.6711111111111111,
+    "paint_error_m": {
+     "f35_line1": 0.14105549781573587,
+     "f35_line4": 0.8959203953508372,
+     "f300_line5": 0.09181170215365404,
+     "f300_line6": 0.04129104137729063,
+     "f449_line0": 2.3680681645716173,
+     "f449_line5": 0.4322985719409138,
+     "f449_line6": 0.23208911068757998,
+     "f449_line2": 5.3549694211693435,
+     "f130_circle": 1.6066642737967847
+    },
+    "static_turf": {
+     "median_kmh": 1.233026159524884,
+     "worst_kmh": 3.319452509534405,
+     "windows": 15
+    },
+    "speed_kmh": {
+     "120-145": 18.064419695369864,
+     "225-275": 13.188709443948914
+    }
+   },
+   {
+    "method": "A_reference_photos",
+    "seconds": 1.3888647556304932,
+    "status": "ok",
+    "coverage": 0.7,
+    "paint_error_m": {
+     "f35": null,
+     "f300_line5": 0.3430701258332411,
+     "f300_line6": 0.061418272756908164,
+     "f449_line0": 2.176686739820322,
+     "f449_line5": 0.6532034203375918,
+     "f449_line6": 0.5937485920886217,
+     "f449_line2": 8.993596587171531,
+     "f130_circle": null
+    },
+    "static_turf": {
+     "median_kmh": 0.18404199101343266,
+     "worst_kmh": 0.595088049428496,
+     "windows": 19
+    },
+    "speed_kmh": {
+     "120-145": null,
+     "225-275": 17.351199633741867
+    },
+    "note": ""
+   },
+   {
+    "method": "B_camfit",
+    "seconds": 2.7142040729522705,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {
+     "f35_line1": 0.4741571106734447,
+     "f35_line4": 2.8474156998424993,
+     "f300_line5": 0.47250351413092073,
+     "f300_line6": 0.11405896532524111,
+     "f449_line0": 2.6821682037574828,
+     "f449_line5": 1.006357329317014,
+     "f449_line6": 0.6193867214913331,
+     "f449_line2": 6.905593084082019,
+     "f130_circle": 0.6202032595770461
+    },
+    "static_turf": {
+     "median_kmh": 0.24573076481276374,
+     "worst_kmh": 4.325960671511817,
+     "windows": 28
+    },
+    "speed_kmh": {
+     "120-145": 16.527218081173675,
+     "225-275": 12.66656744730411
+    }
+   },
+   {
+    "method": "C_ai_lines",
+    "seconds": 3.6491332054138184,
+    "status": "failed",
+    "ai_lines_per_key": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "method": "D_ai_lines",
+    "seconds": 0.0010499954223632812,
+    "status": "failed",
+    "ai_lines_per_key": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "method": "S_geometry_solver",
+    "seconds": 44.90890622138977,
+    "status": "ok",
+    "coverage": 0.7,
+    "paint_error_m": {
+     "f35_line1": 0.9657079427753548,
+     "f35_line4": 3.4423285136579382,
+     "f300_line5": 0.06718538011300419,
+     "f300_line6": 0.07810308412799127,
+     "f449_line0": 2.4737331812740835,
+     "f449_line5": 0.44367993153303037,
+     "f449_line6": 0.3400659714416854,
+     "f449_line2": 19.069723654996206,
+     "f130_circle": 2.8353228231166714
+    },
+    "static_turf": {
+     "median_kmh": 0.1808161545556286,
+     "worst_kmh": 0.8401748191521963,
+     "windows": 13
+    },
+    "speed_kmh": {
+     "120-145": 18.419406064996664,
+     "225-275": null
+    },
+    "log": [
+     "카메라 위치 (22.2, 36.6) 높이 5.9 m, 초점거리 1373 px"
+    ]
+   },
+   {
+    "method": "C_auto_labels",
+    "seconds": 0.04640316963195801,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {
+     "f35_line1": 9.998439319128927,
+     "f35_line4": 5.72981488668097,
+     "f300_line5": 0.026853953172776193,
+     "f300_line6": 0.005888953608998819,
+     "f449_line0": 2.4649810998813018,
+     "f449_line5": 0.586895866712932,
+     "f449_line6": 0.3908482938092829,
+     "f449_line2": 19.589175665231664,
+     "f130_circle": 3.699739195662266
+    },
+    "static_turf": {
+     "median_kmh": 1.11466539460308,
+     "worst_kmh": 4.362598975178787,
+     "windows": 28
+    },
+    "speed_kmh": {
+     "120-145": 23.04511727841366,
+     "225-275": 15.363614745424169
+    }
+   },
+   {
+    "method": "D_auto_labels",
+    "seconds": 3.596353054046631,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {
+     "f35_line1": 0.6301172295223594,
+     "f35_line4": 12.292286120375206,
+     "f300_line5": 0.7807745581481106,
+     "f300_line6": 0.20113164652319893,
+     "f449_line0": 136.41896007751188,
+     "f449_line5": 23.177343088644648,
+     "f449_line6": 30.320415916388704,
+     "f449_line2": 427.044450973721,
+     "f130_circle": 4.4172015180985245
+    },
+    "static_turf": {
+     "median_kmh": 16.042668473853183,
+     "worst_kmh": 245.11184291821584,
+     "windows": 27
+    },
+    "speed_kmh": {
+     "120-145": 10.275523767053086,
+     "225-275": 12.91637693277477
+    }
+   },
+   {
+    "method": "E_auto_labels",
+    "seconds": 0.54520583152771,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {
+     "f35_line1": 1.4764504688110522,
+     "f35_line4": 3.5033459174346846,
+     "f300_line5": 0.5285591599403844,
+     "f300_line6": 0.30898124799740945,
+     "f449_line0": 45.108846762489236,
+     "f449_line5": 14.652998864844857,
+     "f449_line6": 21.006210430072528,
+     "f449_line2": 74.2235431843485,
+     "f130_circle": 3.9346787134286307
+    },
+    "static_turf": {
+     "median_kmh": 17.380383115221292,
+     "worst_kmh": 249.60568738190833,
+     "windows": 28
+    },
+    "speed_kmh": {
+     "120-145": 13.100302589482185,
+     "225-275": 13.628004659086717
+    }
+   }
+  ],
+  "ye-0920-goal": [
+   {
+    "method": "A_hand",
+    "seconds": 0.0006887912750244141,
+    "status": "ok",
+    "coverage": 0.4230769230769231,
+    "paint_error_m": {
+     "f245_circle": 2.6897757367631545
+    },
+    "static_turf": {
+     "median_kmh": 0.06380942707098422,
+     "worst_kmh": 0.16373209168491465,
+     "windows": 9
+    },
+    "speed_kmh": {
+     "225-270": 26.435288930182654,
+     "227-257": 29.339928693287256
+    }
+   },
+   {
+    "method": "A_reference_photos",
+    "seconds": 1.3690907955169678,
+    "status": "ok",
+    "coverage": 0.4230769230769231,
+    "paint_error_m": {
+     "f245_circle": 3.6191399340416623
+    },
+    "static_turf": {
+     "median_kmh": 0.054825257780763054,
+     "worst_kmh": 0.17135811835752995,
+     "windows": 9
+    },
+    "speed_kmh": {
+     "225-270": 28.262589625206427,
+     "227-257": 31.472555702032462
+    },
+    "note": ""
+   },
+   {
+    "method": "B_camfit",
+    "seconds": 1.2815370559692383,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {
+     "f245_circle": 2.7201851513302993
+    },
+    "static_turf": {
+     "median_kmh": 0.3429251078026676,
+     "worst_kmh": 1.207850333289139,
+     "windows": 24
+    },
+    "speed_kmh": {
+     "225-270": 26.78676369100474,
+     "227-257": 29.76067926252263
+    }
+   },
+   {
+    "method": "C_ai_lines",
+    "seconds": 2.499973773956299,
+    "status": "failed",
+    "ai_lines_per_key": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "method": "D_ai_lines",
+    "seconds": 0.0009241104125976562,
+    "status": "failed",
+    "ai_lines_per_key": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "method": "S_geometry_solver",
+    "seconds": 36.917893171310425,
+    "status": "ok",
+    "coverage": 0.9282051282051282,
+    "paint_error_m": {
+     "f245_circle": 1.3233440693850618
+    },
+    "static_turf": {
+     "median_kmh": 0.07019275627834448,
+     "worst_kmh": 0.39436118080200155,
+     "windows": 20
+    },
+    "speed_kmh": {
+     "225-270": 25.989582563013332,
+     "227-257": 29.114162594858147
+    },
+    "log": [
+     "카메라 위치 (22.2, 42.1) 높이 6.0 m, 초점거리 1725 px"
+    ]
+   },
+   {
+    "method": "C_auto_labels",
+    "seconds": 0.04485678672790527,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {
+     "f245_circle": 1.7566307005970359
+    },
+    "static_turf": {
+     "median_kmh": 0.10313576328675823,
+     "worst_kmh": 4.084904093851727,
+     "windows": 24
+    },
+    "speed_kmh": {
+     "225-270": 26.547367801587665,
+     "227-257": 29.798990951522917
+    }
+   },
+   {
+    "method": "D_auto_labels",
+    "seconds": 2.265791177749634,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {
+     "f245_circle": 1.210792458502552
+    },
+    "static_turf": {
+     "median_kmh": 0.6987124768384904,
+     "worst_kmh": 3.174675269149338,
+     "windows": 24
+    },
+    "speed_kmh": {
+     "225-270": 25.992370038812542,
+     "227-257": 29.334589815796786
+    }
+   },
+   {
+    "method": "E_auto_labels",
+    "seconds": 0.6171960830688477,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {
+     "f245_circle": 0.3099470399792619
+    },
+    "static_turf": {
+     "median_kmh": 1.0748970321320772,
+     "worst_kmh": 6.529490792410709,
+     "windows": 24
+    },
+    "speed_kmh": {
+     "225-270": 39.3197426087996,
+     "227-257": 44.00964508674973
+    }
+   }
+  ],
+  "1103-181629-kmh0": [
+   {
+    "method": "A_hand",
+    "seconds": 0.0015480518341064453,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {},
+    "static_turf": {
+     "median_kmh": 0.003089541137247881,
+     "worst_kmh": 0.008245886469016108,
+     "windows": 16
+    },
+    "speed_kmh": {}
+   },
+   {
+    "method": "A_reference_photos",
+    "seconds": 0.9839229583740234,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {},
+    "static_turf": {
+     "median_kmh": 0.002525873768073004,
+     "worst_kmh": 0.34447045672117815,
+     "windows": 16
+    },
+    "speed_kmh": {},
+    "note": "includes a reference photo from the 14:48 clip itself"
+   },
+   {
+    "method": "B_camfit",
+    "seconds": 1.7147600650787354,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {},
+    "static_turf": {
+     "median_kmh": 0.06090682525098626,
+     "worst_kmh": 0.2992235430445422,
+     "windows": 16
+    },
+    "speed_kmh": {}
+   },
+   {
+    "method": "C_ai_lines",
+    "seconds": 1.8369982242584229,
+    "status": "failed",
+    "ai_lines_per_key": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "method": "D_ai_lines",
+    "seconds": 0.0007929801940917969,
+    "status": "failed",
+    "ai_lines_per_key": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   {
+    "method": "S_geometry_solver",
+    "seconds": 34.816351890563965,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {},
+    "static_turf": {
+     "median_kmh": 0.04585448221979617,
+     "worst_kmh": 0.260935394697182,
+     "windows": 16
+    },
+    "speed_kmh": {},
+    "log": [
+     "카메라 위치 (25.4, 43.4) 높이 5.7 m, 초점거리 2261 px"
+    ]
+   },
+   {
+    "method": "C_auto_labels",
+    "seconds": 0.07841205596923828,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {},
+    "static_turf": {
+     "median_kmh": 0.4423346016136259,
+     "worst_kmh": 1.8450319966814717,
+     "windows": 16
+    },
+    "speed_kmh": {}
+   },
+   {
+    "method": "D_auto_labels",
+    "seconds": 1.0225458145141602,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {},
+    "static_turf": {
+     "median_kmh": 0.050053120758554386,
+     "worst_kmh": 0.10672267610431946,
+     "windows": 16
+    },
+    "speed_kmh": {}
+   },
+   {
+    "method": "E_auto_labels",
+    "seconds": 0.21836590766906738,
+    "status": "ok",
+    "coverage": 1.0,
+    "paint_error_m": {},
+    "static_turf": {
+     "median_kmh": 0.01529460723724331,
+     "worst_kmh": 0.059331529456090874,
+     "windows": 16
+    },
+    "speed_kmh": {}
+   }
+  ]
+ },
+ "low": [
+  {
+   "clip": "zczL3Gikw2E-a",
+   "accepted": false,
+   "seconds": 22.073291063308716,
+   "log": [
+    "카메라 후보를 믿을 수 없어요: 카메라가 낮아요 (3.0 m)"
+   ]
+  },
+  {
+   "clip": "zczL3Gikw2E-b",
+   "accepted": false,
+   "seconds": 23.531409978866577,
+   "log": [
+    "카메라 후보를 믿을 수 없어요: 카메라가 낮아요 (2.0 m)"
+   ]
+  },
+  {
+   "clip": "zczL3Gikw2E-c",
+   "accepted": false,
+   "seconds": 25.218751907348633,
+   "log": [
+    "카메라 후보를 믿을 수 없어요: 페인트선이 설명되는 구간이 부족해요 (0개)"
+   ]
+  },
+  {
+   "clip": "5zbSRX1Axcs-5s",
+   "accepted": false,
+   "seconds": 11.774387836456299,
+   "log": [
+    "카메라 후보를 믿을 수 없어요: 카메라가 낮아요 (2.4 m)"
+   ]
+  },
+  {
+   "clip": "5zbSRX1Axcs-20s",
+   "accepted": false,
+   "seconds": 22.078941106796265,
+   "log": [
+    "카메라 후보를 믿을 수 없어요: 카메라가 낮아요 (2.1 m)"
+   ]
+  },
+  {
+   "clip": "5zbSRX1Axcs-41s",
+   "accepted": false,
+   "seconds": 27.703253030776978,
+   "log": [
+    "카메라 후보를 믿을 수 없어요: 카메라가 낮아요 (2.6 m)"
+   ]
+  },
+  {
+   "clip": "5zbSRX1Axcs-52s",
+   "accepted": false,
+   "seconds": 21.63088607788086,
+   "log": [
+    "카메라 후보를 믿을 수 없어요: 카메라가 낮아요 (1.9 m)"
+   ]
+  }
+ ],
+ "weights": true
+}

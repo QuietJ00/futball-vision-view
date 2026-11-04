@@ -171,6 +171,12 @@ def _gap(H1,H2,sky,grid=GRID):
 def chain(CUM,a,b,Ha):
  # Calibration of frame a carried into frame b through the camera chain.
  M=CUM[b]@np.linalg.inv(CUM[a])@Ha;return M/M[2,2]
+def blend(H1,H2,t):
+ # Homographies are defined up to sign and scale, and dividing by H[2,2] flips the sign once the
+ # pitch origin is behind the camera. Blending two such matrices directly can cancel them out.
+ a,b=H1/np.linalg.norm(H1),H2/np.linalg.norm(H2)
+ if (a*b).sum()<0:b=-b
+ return (1-t)*a+t*b
 def track_lines(F,CUM,seeds,meta,sky,step=10,log=print,boxes=None):
  # Follow the painted lines through the clip. From each trusted seed, walk outward keyframe by
  # keyframe: predict through the camera chain, then snap onto the white lines visible in that

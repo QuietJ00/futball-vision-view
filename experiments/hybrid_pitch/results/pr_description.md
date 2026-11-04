@@ -1,0 +1,21 @@
+## Summary
+- 실험용 카메라 보정 세 가지를 기능 플래그 뒤에 추가했어요. 앱의 기본 동작은 바뀌지 않아요.
+- 합성 61개 장면과 실제 영상으로 A~E를 비교한 벤치마크와 보고서를 넣었어요.
+- 팬 중 호모그래피 보간이 상쇄되던 버그를 `pitch.blend`로 고쳤어요.
+
+## 결과
+보고서: `experiments/hybrid_pitch/results/report.md`
+- 합성: AUTO는 A 대비 위치 오차 중앙값이 오라클 97%, 노이즈 86% 감소
+- 실제: 공개 AI 라인 모델 0개 검출, D/E는 실제 클립에서 실패, 솔버 S는 스탠드 클립 3개를 입력 없이 풀고 낮은 카메라 7구간은 거부
+- 실제 미터·km/h 정확도는 정답 데이터가 없어 미검증
+
+## 권고
+운영 기본값은 유지하고 `AUTOHL_CALIBRATOR=camera`는 스탠드 높이 영상의 초안 용도로만 사용해요.
+
+## Test plan
+- [x] `python -m unittest discover -s tests` (29개 통과)
+- [x] `python -m experiments.hybrid_pitch.benchmark --seed 42` (2,440회)
+- [x] `python -m experiments.hybrid_pitch.real_eval`
+- [ ] 실제 선수 측정 데이터로 위치·속도 검증
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
