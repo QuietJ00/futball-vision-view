@@ -4,7 +4,7 @@ from unittest import mock
 
 import numpy as np
 
-from autohl import field_geometry, hybrid_calib as hc, pitch, semantic_pitch
+from autohl import field_geometry, field_solver as fs, hybrid_calib as hc, pitch, semantic_pitch
 from autohl.camera import warp
 from experiments.hybrid_pitch import synthetic_data as sd
 
@@ -119,3 +119,53 @@ class FeatureFlagTest(unittest.TestCase):
         with mock.patch.dict(os.environ, clear=False):
             os.environ.pop('AUTOHL_CALIBRATOR', None)
             self.assertFalse(field_geometry.solver_enabled())
+
+
+class BroadcastCameraTest(unittest.TestCase):
+    """A camera far back on a long lens that pans along one touchline and zooms in."""
+    meta = {'name': 'test', 'length': 101., 'width': 68.}
+    position = np.array([50.5, 43., 13.])
+
+    def clip(self, zoom=.06, frames=9):
+        focal = np.log(5400.)+np.linspace(0, zoom, frames)
+        cameras = [np.r_[.10-.035*k, .22, .01, focal[k], self.position] for k in range(frames)]
+        truth = [fs._homography(c) for c in cameras]
+        segments = pitch.model_segments(self.meta)
+        observations = {}
+        for k, H in enumerate(truth):
+            lines = []
+            for index in (2, 4, 17):
+                kind, *shape = segments[index]
+                world = np.linspace(shape[0], shape[1], 300) if kind == 'line' else shape[0]
+                pixels = warp(world, H)
+                pixels = pixels[((pixels >= 0) & (pixels < [1920, 1080])).all(1)]
+                if len(pixels) >= 12:
+                    lines.append({'segment': index, 'points': pixels[::4], 'confidence': 1.})
+            observations[k*12] = lines
+        cumulative = np.zeros((12*(frames-1)+1, 3, 3))
+        for j in range(len(cumulative)):
+            i = min(j//12, frames-2)
+            cumulative[j] = pitch.blend(truth[i], truth[i+1], (j-12*i)/12) @ np.linalg.inv(truth[0])
+        return observations, cumulative, truth
+
+    def test_long_lens_is_found_without_a_seed(self):
+        observations, cumulative, _ = self.clip(zoom=0.)
+        c = hc.fit_shared(observations, cumulative, self.meta)
+        self.assertIsNotNone(c)
+        self.assertLess(np.linalg.norm(c.cameras[0][4:7]-self.position), 2.)
+        self.assertEqual(c.k1, 0.)
+
+    def test_zoom_keeps_the_ground_scale(self):
+        observations, cumulative, truth = self.clip()
+        c = hc.calibrate(observations, cumulative, self.meta)
+        self.assertIn('model=zoom', c.notes)
+        for k in range(len(truth)-1):
+            seen = warp(np.array([[35., -22.], [45., -22.]]), truth[k])
+            ground = c.to_pitch(k*12, seen)
+            self.assertAlmostEqual(np.linalg.norm(ground[1]-ground[0]), 10., delta=.15)
+
+    def test_a_fit_that_discards_much_of_its_paint_is_refused(self):
+        observations, cumulative, _ = self.clip(zoom=0.)
+        named = sum(len(lines) for lines in observations.values())
+        with mock.patch.object(hc, '_clean', side_effect=lambda seen, *_: (seen, named//2)):
+            self.assertIsNone(hc.fit_shared(observations, cumulative, self.meta))
