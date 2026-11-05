@@ -8,12 +8,14 @@ import cv2
 import numpy as np
 
 from . import field_solver, hybrid_calib, pitch
-from .camera import distort, undistort, warp
+from .camera import distort, pinhole_motion, turf_motion, undistort, warp
 
 MANUAL_MIN_PAINT = .19
 MIN_AXIS_PAINT = .24
 CONFLICT_MARGIN = .04
+MAX_GROUND_REACH = 300  # frames a ground-followed path may run from a key, about 15 px of drift
 MAX_TURF_SLIP = 1.  # pixels per frame a refined camera may move the lines over the turf
+TURF_SLIP_SHARE = .03  # or this share of the turf's own motion in that frame
 ALONG_LINES = [1, 2, 5, 7, 8, 10, 11, 13, 14, 16]
 ACROSS_LINES = [0, 3, 4, 6, 9, 12, 15]
 
@@ -351,7 +353,13 @@ def _paint_check(image, H, lines, sky):
     return hits/max(total, 1), min(best)
 
 
-def _project_map(F, CUM, meta, segments, anchors, sky, mode, log):
+def _followed_from_key(k, key, followed):
+    """The ground itself carried the camera from a solved key to this frame, step by step."""
+    first, last = sorted((k, key))
+    return followed is not None and last-first <= MAX_GROUND_REACH and bool(followed[first+1:last+1].all())
+
+
+def _project_map(F, CUM, meta, segments, anchors, sky, mode, log, followed=None):
     # Validate paint periodically; adjacent frames receive coordinates only while motion is
     # continuous. Use a single homography (and its inverse) for each accepted frame.
     N = len(F)
@@ -365,6 +373,7 @@ def _project_map(F, CUM, meta, segments, anchors, sky, mode, log):
     check_frames.update(changes)
     check_frames.update(changes-1)
     checks = {}
+    carried = np.zeros(N, dtype=bool)
     for k in sorted(check_frames):
         same = [a for a in anchors if segments[k] == segments[a]]
         if not same:
@@ -403,8 +412,11 @@ def _project_map(F, CUM, meta, segments, anchors, sky, mode, log):
                 H = proposals[winner]
         score, axis = _paint_check(F[k], H, lines, sky)
         minimum = .46 if mode == 'geometry' else MANUAL_MIN_PAINT  # 'camera' and 'manual' share it
+        # Little paint in view is no evidence against a camera the ground has carried from a key.
         if (score < minimum or axis < MIN_AXIS_PAINT) and k not in anchors:
-            continue
+            if not _followed_from_key(k, sources[0], followed):
+                continue
+            carried[k] = True
         # Refinement has a small trust region, as distant parallel markings can otherwise
         # lure the result off its validated world geometry.
         # A solved camera is already held to the whole clip; a per-frame fit would only add jitter.
@@ -433,6 +445,7 @@ def _project_map(F, CUM, meta, segments, anchors, sky, mode, log):
             t = (k-a)/(b-a)
             matrices[k] = pitch.blend(pitch.chain(CUM, a, k, H1), pitch.chain(CUM, b, k, H2), t)
             valid[k], quality[k] = True, min(s1, s2)
+            carried[k] = carried[a] or carried[b]
     indices = np.flatnonzero(valid)
     bad = indices[~np.isfinite(matrices[indices]).all(axis=(1, 2))
                   | (np.abs(np.linalg.det(matrices[indices])) < 1e-9)]
@@ -445,12 +458,14 @@ def _project_map(F, CUM, meta, segments, anchors, sky, mode, log):
         return None
     return {'bases': [(k, H, 0, checks[k][1]) for k, H in sorted(anchors.items()) if valid[k]],
             'mode': mode, 'meta': meta, 'valid': valid, 'segments': segments,
-            'matrix': matrices, 'paint_score': quality, 'score': float(np.nanmean(quality))}
+            'matrix': matrices, 'paint_score': quality, 'score': float(np.nanmean(quality)),
+            'carried': carried}
 
 
 def turf_slip(matrices, valid, cumulative, k1=0., focal=1.):
-    """Worst pixels per frame that pitch lines move over the turf. The ground does not move, so
-    between frames a line must go exactly where the camera motion carries the turf under it."""
+    """Worst slip of pitch lines over the turf, as a share of what is allowed. The ground does not
+    move, so a line must go where the camera motion carries the turf. A fast pan may slip a little
+    more, as the same small scale error moves more pixels, and the eye cannot follow it anyway."""
     y, x = np.mgrid[640:1040:40, 60:1880:60]
     grid = np.c_[x.ravel(), y.ravel()].astype(float)
     straight = undistort(grid, k1, focal)
@@ -459,24 +474,36 @@ def turf_slip(matrices, valid, cumulative, k1=0., focal=1.):
         ground = warp(straight, np.linalg.inv(matrices[k]))
         lines = distort(warp(ground, matrices[k+1]), k1, focal)
         turf = warp(grid, cumulative[k+1] @ np.linalg.inv(cumulative[k]))
-        worst = max(worst, float(np.nanmedian(np.linalg.norm(lines-turf, axis=1))))
+        slip = float(np.nanmedian(np.linalg.norm(lines-turf, axis=1)))
+        moved = float(np.nanmedian(np.linalg.norm(turf-grid, axis=1)))
+        worst = max(worst, slip/max(MAX_TURF_SLIP, TURF_SLIP_SHARE*moved))
     return worst
 
 
 def _with_one_camera(result, F, cumulative, meta, boxes, log):
     # Replace frame-by-frame matrices with one camera and lens. Keep the first answer if the fit
     # fails: it is coarser at the far side of the frame, but it is checked and usable.
-    fitted = hybrid_calib.refine_camera(pitch.Calib(result, cumulative), F, cumulative, meta, boxes)
+    carried = result.get('carried', np.zeros(len(F), dtype=bool))
+    painted = result['valid'] & ~carried
+    fitted = hybrid_calib.refine_camera(pitch.Calib({**result, 'valid': painted}, cumulative), F, cumulative, meta, boxes)
     if fitted is None:
         log('카메라 정밀 보정을 건너뛰었어요.')
         return result
     matrices = result['matrix'].copy()
-    for k in np.flatnonzero(result['valid']):
+    for k in np.flatnonzero(painted):
         H = fitted.img_from_pitch(int(k))
         matrices[k] = H/H[2, 2]
-    if turf_slip(matrices, result['valid'], cumulative, fitted.k1, fitted.focal) > MAX_TURF_SLIP:
+    if turf_slip(matrices, painted, cumulative, fitted.k1, fitted.focal) > 1:
         log('카메라 정밀 보정이 선을 흔들어서 쓰지 않았어요.')
         return result
+    # Frames with too little paint to fit stay on the ground path, from the nearest fitted frame.
+    straight = pinhole_motion(cumulative, fitted.k1, fitted.focal)
+    source = np.flatnonzero(painted)
+    if len(source):
+        for k in np.flatnonzero(result['valid'] & carried):
+            nearest = int(source[np.argmin(np.abs(source-k))])
+            H = pitch.chain(straight, nearest, k, matrices[nearest])
+            matrices[k] = H/H[2, 2]
     log(f'렌즈 왜곡 {fitted.k1:+.2f}, 초점거리 {fitted.focal:.0f} px')
     return {**result, 'matrix': matrices, 'k1': fitted.k1, 'focal': fitted.focal}
 
@@ -499,12 +526,21 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
             raise ValueError('영상 안의 프레임을 선택해 주세요.')
         anchors[k] = _fit_points(meta, k, points)
     mode = 'manual' if anchors else 'geometry'
+    followed = None
     if not anchors and solver_enabled():
         for segment in np.unique(segments):
             frames = np.flatnonzero(segments == segment)
             if len(frames) >= 2:
-                anchors.update(field_solver.solve(F, cumulative, meta, boxes, frames, log=log) or {})
+                try:
+                    anchors.update(field_solver.solve(F, cumulative, meta, boxes, frames, log=log) or {})
+                except (ValueError, np.linalg.LinAlgError) as error:
+                    # Search on a view it cannot model (a ground plane seen edge-on) is a refusal.
+                    log(f'카메라를 풀지 못했어요: {error}')
         mode = 'camera' if anchors else mode
+        if anchors and boxes is not None:
+            # The solver ties its keys by pure rotation, which a ground-plane path is not, so only
+            # the frames between and beyond the keys follow the ground.
+            cumulative, followed = turf_motion(F, boxes, cumulative)
     if not anchors:
         # Try several views on each connected shot. Failure is explicit and cannot become
         # a geometry result merely because a single candidate scored above a threshold.
@@ -527,5 +563,5 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
                     anchors[a], anchors[b] = found[a], found[b]
     if not anchors:
         return None
-    result = _project_map(F, cumulative, meta, segments, anchors, sky, mode, log)
+    result = _project_map(F, cumulative, meta, segments, anchors, sky, mode, log, followed)
     return _with_one_camera(result, F, cumulative, meta, boxes, log) if mode == 'camera' and result else result

@@ -77,7 +77,7 @@ class FocalFromMotionTest(unittest.TestCase):
 
 
 class AcceptanceTest(unittest.TestCase):
-    good = dict(keys=3, windows=6, gap=8., people=.03, on_pitch=1., height=5.9)
+    good = dict(keys=3, windows=6, gap=8., people=.03, on_pitch=1., height=5.9, lowest=3.7)
 
     def test_a_stand_camera_passes(self):
         self.assertIsNone(solver._rejection(**self.good))
@@ -85,6 +85,14 @@ class AcceptanceTest(unittest.TestCase):
     def test_each_check_can_refuse_on_its_own(self):
         for change in ({'keys': 1}, {'gap': 272.}, {'people': -.2}, {'on_pitch': .6}, {'height': 2.4}):
             self.assertIsNotNone(solver._rejection(**{**self.good, **change}), change)
+
+    def test_the_minimum_height_follows_distance_and_lens(self):
+        stand = solver.minimum_height((22., 43., 6.), 1600., META)
+        self.assertAlmostEqual(stand, 3.1, delta=.2)
+        self.assertAlmostEqual(solver.minimum_height((52., 47., 6.), 1600., {'length': 105., 'width': 68.}), 3.8, delta=.1)
+        self.assertGreater(solver.minimum_height((-8.5, 18.5, 2.4), 1600., META), 5.)
+        self.assertEqual(solver.minimum_height((22., 43., 6.), 5400., META), solver.LOWEST_CAMERA_M)
+        self.assertGreater(solver.minimum_height((22., 73., 6.), 1600., META), stand)
 
     def test_a_very_short_clip_needs_one_key(self):
         self.assertIsNone(solver._rejection(**{**self.good, 'keys': 1, 'windows': 1}))

@@ -93,6 +93,56 @@ def solve(F,log=print):
 def warp(p,M):return cv2.perspectiveTransform(np.float32(p).reshape(-1,1,2),M).reshape(-1,2)
 
 
+def _turf_mask(image, boxes):
+    hsv = cv2.cvtColor(np.ascontiguousarray(image), cv2.COLOR_BGR2HSV)
+    turf = ((hsv[..., 0] > 25) & (hsv[..., 0] < 95) & (hsv[..., 1] > 40)).astype(np.uint8)*255
+    # Closing keeps the painted lines, which are the sharpest texture on the ground.
+    turf = cv2.morphologyEx(turf, cv2.MORPH_CLOSE, np.ones((25, 25), np.uint8))
+    for x0, y0, x1, y1, *_ in boxes:
+        turf[max(int(y0)-8, 0):int(y1)+8, max(int(x0)-8, 0):int(x1)+8] = 0
+    return turf
+
+
+def _turf_step(first, second, mask):
+    """Homography from one frame to the next, measured on the ground. None if it is unclear."""
+    points = cv2.goodFeaturesToTrack(first, 1500, .005, 10, mask=mask)
+    if points is None or len(points) < 30:
+        return None
+    lk = dict(winSize=(31, 31), maxLevel=4)
+    moved, found, _ = cv2.calcOpticalFlowPyrLK(first, second, points, None, **lk)
+    back, returned, _ = cv2.calcOpticalFlowPyrLK(second, first, moved, None, **lk)
+    keep = (found[:, 0] == 1) & (returned[:, 0] == 1) & (np.linalg.norm(back-points, axis=2)[:, 0] < .7)
+    if keep.sum() < MIN_LINK_INLIERS:
+        return None
+    H, inliers = cv2.findHomography(points[keep, 0], moved[keep, 0], cv2.RANSAC, 1.5)
+    if H is None or inliers.sum() < MIN_LINK_INLIERS or not .5 < np.linalg.det(H/H[2, 2]) < 2:
+        return None
+    return H
+
+
+def turf_motion(frames, boxes, cumulative):
+    """Rebuild the camera path from frame-to-frame ground motion.
+
+    Keyframe feature matching can be tens of pixels out during a fast pan, because it matches
+    across fence and trees that barely overlap by then. The ground is what coordinates sit on,
+    so it decides each step. A step it cannot measure keeps the keyframe link, which also keeps
+    a camera cut a break. Returns the path and whether the ground measured the step into a frame.
+    """
+    path = [np.array(cumulative[0], float)]
+    measured = np.zeros(len(cumulative), bool)
+    current = cv2.cvtColor(np.ascontiguousarray(frames[0]), cv2.COLOR_BGR2GRAY)
+    for k in range(len(cumulative)-1):
+        following = cv2.cvtColor(np.ascontiguousarray(frames[k+1]), cv2.COLOR_BGR2GRAY)
+        step = _turf_step(current, following, _turf_mask(frames[k], boxes[k]))
+        measured[k+1] = step is not None
+        if step is None:
+            step = cumulative[k+1] @ np.linalg.inv(cumulative[k])
+        path.append(step @ path[-1])
+        path[-1] = path[-1]/path[-1][2, 2]
+        current = following
+    return np.array(path), measured
+
+
 def refine_ground_motion(frames, cumulative, boxes, reference, indices, focus, ground_mask=None):
     """Correct camera motion locally using static turf texture near a ground trajectory."""
     gray = cv2.cvtColor(frames[reference], cv2.COLOR_BGR2GRAY)

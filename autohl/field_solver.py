@@ -38,9 +38,12 @@ MAX_PEOPLE_ERROR = .15  # median |log(predicted height / box height)|
 MIN_ON_PITCH = .85
 MIN_COVER = .4          # share of a window's strokes the model must explain to count as a key
 MAX_KEY_GAP = 40.       # pixels two keys may differ by once carried to the same frame
-# Below this height paint is too flat to place the camera: every such answer on real clips was
-# wrong, and some passed all the other checks, with the near lines right and the far ones not.
-MIN_TRUSTED_HEIGHT = 3.5
+# The ground error of a foot grows as distance squared over height and focal length. Noise from
+# real clips (3 px on paint, 2 px on feet) gives p95 = 2.3 D^2/(h f) over the pitch, within 10% for
+# lenses of 1000-5400 px, heights of 2-20 m and cameras 5-30 m behind the touchline.
+GROUND_ERROR_GAIN = 2.3
+MAX_GROUND_ERROR_M = 2.5
+LOWEST_CAMERA_M = 3.  # Below this, a long lens does not help: wrong answers pass every check.
 
 
 @lru_cache(maxsize=1)
@@ -688,10 +691,18 @@ def _solve_keys(windows, group, cumulative, focal, fixed_focal, model):
             else np.r_[p[:3], np.log(focal), position] for w, p in keys.items()}, position, focal
 
 
-def _rejection(keys, windows, gap, people, on_pitch, height):
+def minimum_height(position, focal, meta):
+    """Lowest camera, in metres, that keeps feet on the far touchline within the allowed error."""
+    far = abs(position[1])+meta['width']/2
+    if not 0 <= position[0] <= meta['length']:  # Behind a goal it looks down the whole pitch.
+        far = max(far, abs(position[0]-meta['length']/2)+meta['length']/2)
+    return max(LOWEST_CAMERA_M, GROUND_ERROR_GAIN*far**2/(MAX_GROUND_ERROR_M*focal))
+
+
+def _rejection(keys, windows, gap, people, on_pitch, height, lowest=0.):
     """Why a solved camera should not be used, or None. A refusal sends the clip to manual marks."""
-    if height < MIN_TRUSTED_HEIGHT:
-        return f'카메라가 낮아요 ({height:.1f} m)'
+    if height < lowest:
+        return f'카메라가 낮아요 ({height:.1f} m, 이 위치와 화각의 최소 높이 {lowest:.1f} m)'
     if keys < min(2, windows):
         return f'페인트선이 설명되는 구간이 부족해요 ({keys}개)'
     if gap > MAX_KEY_GAP:
@@ -742,7 +753,8 @@ def solve(F, cumulative, meta, boxes, frames, log=print):
     gaps = [pitch._gap(pitch.chain(cumulative, a, b, strong[a]), strong[b], 0, grid)
             for a, b in zip(ordered, ordered[1:])]
     worst = max((g for g in gaps if np.isfinite(g)), default=0.)
-    problem = _rejection(len(strong), len(windows), worst, people, on_pitch, position[2])
+    problem = _rejection(len(strong), len(windows), worst, people, on_pitch, position[2],
+                         minimum_height(position, focal, meta))
     if problem:
         log(f'카메라 후보를 믿을 수 없어요: {problem}')
         return None
