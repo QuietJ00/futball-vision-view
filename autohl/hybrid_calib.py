@@ -492,7 +492,7 @@ def anchored(calibration, observations, min_lines=4):
     return calibration
 
 
-def named_paint(c, F, boxes, frames, meta, gate=1.2):
+def named_paint(c, F, boxes, frames, meta, gate=1.2, far_paint=False):
     """Name the paint a working calibration can see, as input for fit_shared.
 
     Curves never form straight strokes, so the centre circle and penalty arcs are named from raw
@@ -512,7 +512,7 @@ def named_paint(c, F, boxes, frames, meta, gate=1.2):
             nearest, close = distance.argmin(1), distance.min(1) < 1.
             for segment in np.unique(nearest[close]):
                 group = points[close & (nearest == segment)]
-                if len(group) >= 6 and segment != FAR_TOUCHLINE:
+                if len(group) >= 6 and (far_paint or segment != FAR_TOUCHLINE):
                     lines.append({'segment': int(segment), 'points': group, 'confidence': 1.})
         y, x = np.nonzero(loose & lawn)
         paint = np.c_[x, y]*2.
@@ -539,6 +539,18 @@ def refine_camera(c, F, cumulative, meta, boxes, rounds=2, step=15):
         if fitted is None:
             return None
     fitted.CUM = pinhole_motion(cumulative, fitted.k1, fitted.focal)
+    return fitted
+
+
+def refine_long_lens(c, F, cumulative, meta, boxes, rounds=2, step=10):
+    """One camera, with zoom if the clip needs it, for footage on a long lens, or None."""
+    frames = [k for k in range(0, len(F), step) if c.supports(k)]
+    fitted = c
+    for _ in range(rounds):
+        # From a gantry the far touchline is plain paint, with no track edge to find it by.
+        fitted = calibrate(named_paint(fitted, F, boxes, frames, meta, far_paint=True), cumulative, meta)
+        if fitted is None:
+            return None
     return fitted
 
 

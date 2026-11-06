@@ -7,12 +7,15 @@ import os
 import cv2
 import numpy as np
 
-from . import field_solver, hybrid_calib, pitch
-from .camera import distort, pinhole_motion, turf_motion, undistort, warp
+from . import broadcast_pitch, field_solver, hybrid_calib, pitch
+from .camera import distort, pinhole_motion, shot_cuts, turf_motion, undistort, warp
 
 MANUAL_MIN_PAINT = .19
 MIN_AXIS_PAINT = .24
 CONFLICT_MARGIN = .04
+MIN_LONG_LENS_FRAMES = 30
+LONG_LENS_SLIP = 5.
+MAX_LONG_LENS_SOLVES = 4
 MAX_GROUND_REACH = 300  # frames a ground-followed path may run from a key, about 15 px of drift
 MAX_TURF_SLIP = 1.  # pixels per frame a refined camera may move the lines over the turf
 TURF_SLIP_SHARE = .03  # or this share of the turf's own motion in that frame
@@ -485,7 +488,8 @@ def _with_one_camera(result, F, cumulative, meta, boxes, log):
     # fails: it is coarser at the far side of the frame, but it is checked and usable.
     carried = result.get('carried', np.zeros(len(F), dtype=bool))
     painted = result['valid'] & ~carried
-    fitted = hybrid_calib.refine_camera(pitch.Calib({**result, 'valid': painted}, cumulative), F, cumulative, meta, boxes)
+    refine = hybrid_calib.refine_long_lens if result.get('long_lens') else hybrid_calib.refine_camera
+    fitted = refine(pitch.Calib({**result, 'valid': painted}, cumulative), F, cumulative, meta, boxes)
     if fitted is None:
         log('카메라 정밀 보정을 건너뛰었어요.')
         return result
@@ -493,19 +497,57 @@ def _with_one_camera(result, F, cumulative, meta, boxes, log):
     for k in np.flatnonzero(painted):
         H = fitted.img_from_pitch(int(k))
         matrices[k] = H/H[2, 2]
-    if turf_slip(matrices, painted, cumulative, fitted.k1, fitted.focal) > 1:
+    focal = fitted.focal or 1.
+    # Slip is only meaningful along one stretch, and a zoom fit eases between keys a little more.
+    whole = painted & np.r_[result['segments'][:-1] == result['segments'][1:], True]
+    if turf_slip(matrices, whole, cumulative, fitted.k1, focal) > (LONG_LENS_SLIP if result.get('long_lens') else 1):
         log('카메라 정밀 보정이 선을 흔들어서 쓰지 않았어요.')
         return result
     # Frames with too little paint to fit stay on the ground path, from the nearest fitted frame.
-    straight = pinhole_motion(cumulative, fitted.k1, fitted.focal)
+    straight = pinhole_motion(cumulative, fitted.k1, focal)
     source = np.flatnonzero(painted)
     if len(source):
         for k in np.flatnonzero(result['valid'] & carried):
             nearest = int(source[np.argmin(np.abs(source-k))])
             H = pitch.chain(straight, nearest, k, matrices[nearest])
             matrices[k] = H/H[2, 2]
-    log(f'렌즈 왜곡 {fitted.k1:+.2f}, 초점거리 {fitted.focal:.0f} px')
-    return {**result, 'matrix': matrices, 'k1': fitted.k1, 'focal': fitted.focal}
+    log(f'렌즈 왜곡 {fitted.k1:+.2f}, 초점거리 {focal:.0f} px {fitted.notes}')
+    return {**result, 'matrix': matrices, 'k1': fitted.k1, 'focal': focal}
+
+
+def _from_long_lens(F, cumulative, meta, boxes, inliers, log):
+    """Keys for high tele footage, on the ground path, as its feature path is rarely usable.
+
+    A solve holds only as far as the path does, so what it leaves is solved on its own, as a
+    separate stretch that shares no keys with the last.
+    """
+    path, followed = turf_motion(F, boxes, cumulative, smooth_grass=True)
+    segments = np.zeros(len(F), dtype=int)
+    anchors = {}
+    waiting = np.split(np.arange(len(F)), shot_cuts(F))
+    for number, shot in enumerate(waiting):
+        segments[shot] = number
+    for _ in range(MAX_LONG_LENS_SOLVES+len(waiting)):
+        if not waiting:
+            break
+        frames = waiting.pop(0)
+        if len(frames) < MIN_LONG_LENS_FRAMES:
+            continue
+        try:
+            keys = broadcast_pitch.solve(F, path, meta, boxes, frames, log=log) or {}
+        except (ValueError, np.linalg.LinAlgError) as error:
+            log(f'중계 카메라를 풀지 못했어요: {error}')
+            keys = {}
+        if not keys:
+            continue
+        first, last = min(keys), max(keys)
+        anchors.update(keys)
+        segments[frames[frames >= first]] = segments.max()+1
+        for rest in (frames[frames < first], frames[frames > last]):
+            if len(rest):
+                waiting.append(rest)
+                segments[rest] = segments.max()+1
+    return anchors, path, segments, followed
 
 
 def solver_enabled():
@@ -526,7 +568,7 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
             raise ValueError('영상 안의 프레임을 선택해 주세요.')
         anchors[k] = _fit_points(meta, k, points)
     mode = 'manual' if anchors else 'geometry'
-    followed = None
+    followed, long_lens = None, False
     if not anchors and solver_enabled():
         for segment in np.unique(segments):
             frames = np.flatnonzero(segments == segment)
@@ -536,8 +578,11 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
                 except (ValueError, np.linalg.LinAlgError) as error:
                     # Search on a view it cannot model (a ground plane seen edge-on) is a refusal.
                     log(f'카메라를 풀지 못했어요: {error}')
+        if not anchors and boxes is not None:
+            anchors, cumulative, segments, followed = _from_long_lens(F, cumulative, meta, boxes, inliers, log)
+            long_lens = bool(anchors)
         mode = 'camera' if anchors else mode
-        if anchors and boxes is not None:
+        if anchors and boxes is not None and followed is None:
             # The solver ties its keys by pure rotation, which a ground-plane path is not, so only
             # the frames between and beyond the keys follow the ground.
             cumulative, followed = turf_motion(F, boxes, cumulative)
@@ -564,4 +609,6 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
     if not anchors:
         return None
     result = _project_map(F, cumulative, meta, segments, anchors, sky, mode, log, followed)
+    if result:
+        result['long_lens'] = long_lens
     return _with_one_camera(result, F, cumulative, meta, boxes, log) if mode == 'camera' and result else result

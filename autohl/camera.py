@@ -103,12 +103,18 @@ def _turf_mask(image, boxes):
     return turf
 
 
-def _turf_step(first, second, mask):
-    """Homography from one frame to the next, measured on the ground. None if it is unclear."""
-    points = cv2.goodFeaturesToTrack(first, 1500, .005, 10, mask=mask)
+def _turf_step(first, second, mask, smooth_grass=False):
+    """Homography from one frame to the next, measured on the ground. None if it is unclear.
+
+    Mown grass seen from far away has little contrast, so it needs lifting and a wider search.
+    """
+    if smooth_grass:
+        lift = cv2.createCLAHE(3., (8, 8))
+        first, second = lift.apply(first), lift.apply(second)
+    points = cv2.goodFeaturesToTrack(first, 2500 if smooth_grass else 1500, .003 if smooth_grass else .005, 10, mask=mask)
     if points is None or len(points) < 30:
         return None
-    lk = dict(winSize=(31, 31), maxLevel=4)
+    lk = dict(winSize=(41, 41), maxLevel=5) if smooth_grass else dict(winSize=(31, 31), maxLevel=4)
     moved, found, _ = cv2.calcOpticalFlowPyrLK(first, second, points, None, **lk)
     back, returned, _ = cv2.calcOpticalFlowPyrLK(second, first, moved, None, **lk)
     keep = (found[:, 0] == 1) & (returned[:, 0] == 1) & (np.linalg.norm(back-points, axis=2)[:, 0] < .7)
@@ -120,7 +126,38 @@ def _turf_step(first, second, mask):
     return H
 
 
-def turf_motion(frames, boxes, cumulative):
+def _whip_step(first, second, first_boxes):
+    """A pan too fast to track, matched across the whole frame. None on a cut."""
+    mask = np.full(first.shape[:2], 255, np.uint8)
+    for x0, y0, x1, y1, *_ in first_boxes:
+        mask[max(int(y0)-8, 0):int(y1)+8, max(int(x0)-8, 0):int(x1)+8] = 0
+    sift = cv2.SIFT_create(3000)
+    a, b = (sift.detectAndCompute(cv2.cvtColor(np.ascontiguousarray(x), cv2.COLOR_BGR2GRAY), m)
+            for x, m in ((first, mask), (second, None)))
+    if a[1] is None or b[1] is None or len(a[1]) < 30 or len(b[1]) < 30:
+        return None
+    good = [m for m, n in cv2.BFMatcher(cv2.NORM_L2).knnMatch(a[1], b[1], k=2) if m.distance < .7*n.distance]
+    if len(good) < MIN_LINK_INLIERS:
+        return None
+    H, inliers = cv2.findHomography(np.float32([a[0][m.queryIdx].pt for m in good]),
+                                    np.float32([b[0][m.trainIdx].pt for m in good]), cv2.USAC_MAGSAC, 2.)
+    return H if H is not None and inliers.sum() >= MIN_LINK_INLIERS else None
+
+
+def shot_cuts(frames, change=.3):
+    """Frames that open a new shot. A pan keeps the colours of a view, a cut replaces them."""
+    cuts, last = [], None
+    for k in range(len(frames)):
+        small = cv2.resize(np.ascontiguousarray(frames[k]), (160, 90), interpolation=cv2.INTER_AREA)
+        hist = cv2.calcHist([cv2.cvtColor(small, cv2.COLOR_BGR2HSV)], [0, 1], None, [30, 16], [0, 180, 0, 256])
+        cv2.normalize(hist, hist)
+        if last is not None and cv2.compareHist(last, hist, cv2.HISTCMP_BHATTACHARYYA) > change:
+            cuts.append(k)
+        last = hist
+    return cuts
+
+
+def turf_motion(frames, boxes, cumulative, smooth_grass=False):
     """Rebuild the camera path from frame-to-frame ground motion.
 
     Keyframe feature matching can be tens of pixels out during a fast pan, because it matches
@@ -133,8 +170,10 @@ def turf_motion(frames, boxes, cumulative):
     current = cv2.cvtColor(np.ascontiguousarray(frames[0]), cv2.COLOR_BGR2GRAY)
     for k in range(len(cumulative)-1):
         following = cv2.cvtColor(np.ascontiguousarray(frames[k+1]), cv2.COLOR_BGR2GRAY)
-        step = _turf_step(current, following, _turf_mask(frames[k], boxes[k]))
+        step = _turf_step(current, following, _turf_mask(frames[k], boxes[k]), smooth_grass)
         measured[k+1] = step is not None
+        if step is None and smooth_grass:
+            step = _whip_step(frames[k], frames[k+1], boxes[k])
         if step is None:
             step = cumulative[k+1] @ np.linalg.inv(cumulative[k])
         path.append(step @ path[-1])
