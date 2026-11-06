@@ -68,6 +68,7 @@ class CalibrateTest(unittest.TestCase):
         with (mock.patch.dict('os.environ', {'AUTOHL_CALIBRATOR': 'camera'}),
               mock.patch.object(fg.field_solver, 'solve', return_value={1: np.eye(3)}) as solve,
               mock.patch.object(fg, 'turf_motion', return_value=(ground, np.ones(4, bool))),
+              mock.patch.object(fg, '_keys_on_paint', side_effect=lambda *a, **k: a[4]),
               mock.patch.object(fg, '_project_map', return_value=None) as project):
             self.calibrate()
         self.assertIs(solve.call_args.args[1], self.path)

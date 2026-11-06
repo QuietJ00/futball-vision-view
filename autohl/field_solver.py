@@ -94,6 +94,17 @@ def _strokes(image, boxes, yellow):
     return segments, lawn, relative >= 1.5
 
 
+def line_paint(loose, lawn, shortest=28., widest=5.):
+    """Paint that is long and thin. Floodlit turf sparkles in short bright flecks that sit near any
+    line, so taking them as paint pulls a fit toward nothing and makes every line look close."""
+    mask = np.uint8(loose & lawn)
+    count, label, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    span = np.hypot(stats[:, cv2.CC_STAT_WIDTH], stats[:, cv2.CC_STAT_HEIGHT])
+    keep = (span >= shortest) & (stats[:, cv2.CC_STAT_AREA] <= widest*span)
+    keep[0] = False
+    return keep[label]
+
+
 def _far_edge(image, boxes):
     """The far touchline, found as the turf edge below a red running track.
 

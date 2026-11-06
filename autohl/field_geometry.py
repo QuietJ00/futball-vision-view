@@ -6,6 +6,7 @@ import os
 
 import cv2
 import numpy as np
+from scipy.spatial import cKDTree
 
 from . import broadcast_pitch, field_solver, hybrid_calib, pitch
 from .camera import distort, pinhole_motion, shot_cuts, turf_motion, undistort, warp
@@ -18,6 +19,7 @@ LONG_LENS_SLIP = 5.
 MAX_LONG_LENS_SOLVES = 4
 MAX_GROUND_REACH = 300  # frames a ground-followed path may run from a key, about 15 px of drift
 MAX_TURF_SLIP = 1.  # pixels per frame a refined camera may move the lines over the turf
+MAX_LOOSE_SHARE = .3  # frames that may slip before the whole fit is dropped
 TURF_SLIP_SHARE = .03  # or this share of the turf's own motion in that frame
 ALONG_LINES = [1, 2, 5, 7, 8, 10, 11, 13, 14, 16]
 ACROSS_LINES = [0, 3, 4, 6, 9, 12, 15]
@@ -442,7 +444,8 @@ def _project_map(F, CUM, meta, segments, anchors, sky, mode, log, followed=None)
         H2, s2 = checks[b]
         mid = (a+b)//2
         p, q = pitch.chain(CUM, a, mid, H1), pitch.chain(CUM, b, mid, H2)
-        if max(pitch._gap(p, q, sky, grid), pitch._gap(q, p, sky, grid)) > 12:
+        # Two solved views of one camera ease into each other; elsewhere a gap means a broken path.
+        if mode != 'camera' and max(pitch._gap(p, q, sky, grid), pitch._gap(q, p, sky, grid)) > 12:
             continue
         for k in range(a+1, b):
             t = (k-a)/(b-a)
@@ -465,22 +468,27 @@ def _project_map(F, CUM, meta, segments, anchors, sky, mode, log, followed=None)
             'carried': carried}
 
 
-def turf_slip(matrices, valid, cumulative, k1=0., focal=1.):
-    """Worst slip of pitch lines over the turf, as a share of what is allowed. The ground does not
-    move, so a line must go where the camera motion carries the turf. A fast pan may slip a little
-    more, as the same small scale error moves more pixels, and the eye cannot follow it anyway."""
+def _slips(matrices, valid, cumulative, k1=0., focal=1.):
+    """Slip of pitch lines over the turf per frame, as a share of what is allowed. The ground does
+    not move, so a line must go where the camera motion carries the turf. A fast pan may slip a
+    little more, as the same small scale error moves more pixels, and the eye cannot follow it."""
     y, x = np.mgrid[640:1040:40, 60:1880:60]
     grid = np.c_[x.ravel(), y.ravel()].astype(float)
     straight = undistort(grid, k1, focal)
-    worst = 0.
+    found = {}
     for k in np.flatnonzero(valid[:-1] & valid[1:]):
         ground = warp(straight, np.linalg.inv(matrices[k]))
         lines = distort(warp(ground, matrices[k+1]), k1, focal)
         turf = warp(grid, cumulative[k+1] @ np.linalg.inv(cumulative[k]))
         slip = float(np.nanmedian(np.linalg.norm(lines-turf, axis=1)))
         moved = float(np.nanmedian(np.linalg.norm(turf-grid, axis=1)))
-        worst = max(worst, slip/max(MAX_TURF_SLIP, TURF_SLIP_SHARE*moved))
-    return worst
+        found[int(k)] = slip/max(MAX_TURF_SLIP, TURF_SLIP_SHARE*moved)
+    return found
+
+
+def turf_slip(matrices, valid, cumulative, k1=0., focal=1.):
+    """Worst slip of pitch lines over the turf, as a share of what is allowed."""
+    return max(_slips(matrices, valid, cumulative, k1, focal).values(), default=0.)
 
 
 def _with_one_camera(result, F, cumulative, meta, boxes, log):
@@ -493,6 +501,10 @@ def _with_one_camera(result, F, cumulative, meta, boxes, log):
     if fitted is None:
         log('카메라 정밀 보정을 건너뛰었어요.')
         return result
+    # Past the first and last fitted key the fit only extrapolates, so those frames join the path.
+    span = np.zeros(len(F), dtype=bool)
+    span[int(np.min(fitted.keys)):int(np.max(fitted.keys))+1] = True
+    painted &= span
     matrices = result['matrix'].copy()
     for k in np.flatnonzero(painted):
         H = fitted.img_from_pitch(int(k))
@@ -500,19 +512,109 @@ def _with_one_camera(result, F, cumulative, meta, boxes, log):
     focal = fitted.focal or 1.
     # Slip is only meaningful along one stretch, and a zoom fit eases between keys a little more.
     whole = painted & np.r_[result['segments'][:-1] == result['segments'][1:], True]
-    if turf_slip(matrices, whole, cumulative, fitted.k1, focal) > (LONG_LENS_SLIP if result.get('long_lens') else 1):
+    limit = LONG_LENS_SLIP if result.get('long_lens') else 1
+    slips = _slips(matrices, whole, cumulative, fitted.k1, focal)
+    loose = [k for k, slip in slips.items() if slip > limit]
+    if len(loose) > MAX_LOOSE_SHARE*max(whole.sum(), 1):
         log('카메라 정밀 보정이 선을 흔들어서 쓰지 않았어요.')
         return result
-    # Frames with too little paint to fit stay on the ground path, from the nearest fitted frame.
+    # A few frames can slip where one fitted key is bad. They and the frames with too little paint
+    # to fit stay on the ground path, from the nearest fitted frame.
+    for k in loose:
+        painted[[k, k+1]] = False
     straight = pinhole_motion(cumulative, fitted.k1, focal)
     source = np.flatnonzero(painted)
     if len(source):
-        for k in np.flatnonzero(result['valid'] & carried):
+        for k in np.flatnonzero(result['valid'] & ~painted):
             nearest = int(source[np.argmin(np.abs(source-k))])
             H = pitch.chain(straight, nearest, k, matrices[nearest])
             matrices[k] = H/H[2, 2]
     log(f'렌즈 왜곡 {fitted.k1:+.2f}, 초점거리 {focal:.0f} px {fitted.notes}')
     return {**result, 'matrix': matrices, 'k1': fitted.k1, 'focal': focal}
+
+
+def _keys_on_paint(F, path, meta, boxes, anchors, segments, inside=False, step=15):
+    """Add keys wherever paint can correct the path, working outward from the solved keys.
+
+    The path carries a key well but not perfectly, and the frames before the first solved key can
+    be far from it. Between solved keys this is optional, as it helps some clips name more paint
+    and adds noise in others. Only rotation and zoom change; the camera stays where it was solved.
+    """
+    model = field_solver._model_tree(meta)
+    model['meta'] = meta
+    keys = dict(anchors)
+    for segment in {segments[k] for k in anchors}:
+        frames = np.flatnonzero(segments == segment)
+        ordered = sorted(k for k in anchors if segments[k] == segment)
+        for start, walk in ((ordered[0], frames[frames < ordered[0]][::-step]),
+                            (ordered[0] if inside else ordered[-1],
+                             frames[frames > (ordered[0] if inside else ordered[-1])][::step])):
+            last = start
+            for k in map(int, walk):
+                if k in anchors:
+                    last = k
+                    continue
+                H = pitch.chain(path, last, k, keys[last])
+                points = broadcast_pitch.paint_points(field_solver._read_window(F, path, boxes, [k], k), widest=5.)
+                if len(points) < 40:
+                    continue
+                settled = broadcast_pitch.settle(H, points, model)
+                if settled is not None:
+                    keys[k], last = settled, k
+        _steady_keys(keys, path, segments, segment)
+    return keys
+
+
+def _steady_keys(keys, path, segments, segment, reach=3):
+    """Remove key-to-key noise. On a perfect path every key gives the same pitch-to-first-frame
+    map, so its median over neighbouring keys keeps real drift and drops what paint added."""
+    frames = sorted(k for k in keys if segments[k] == segment)
+    maps = np.array([np.linalg.inv(path[k]) @ keys[k] for k in frames])
+    maps /= maps[:, 2:, 2:]
+    for i, k in enumerate(frames):
+        keys[k] = path[k] @ np.median(maps[max(0, i-reach):i+reach+1], axis=0)
+
+
+def _paint_gap(result, F, path, boxes, meta, step=15):
+    """Median pixels from the pitch lines in view to long thin paint. Lower is better. Only long
+    paint counts, as turf sparkle lies close to any line and would flatter a wrong camera."""
+    calib = pitch.Calib(result, path)
+    features = pitch.model_lines(meta)
+    gaps = []
+    for k in np.flatnonzero(result['valid'])[::step]:
+        _, lawn, loose = field_solver._strokes(np.asarray(F[k]), boxes[k], False)
+        y, x = np.nonzero(field_solver.line_paint(loose, lawn, shortest=40.))
+        if len(x) < 30:
+            continue
+        paint = cKDTree(np.c_[x, y]*2.)
+        for line in features:
+            image = calib.to_img(int(k), line)
+            image = image[np.isfinite(image).all(1) & (image[:, 0] > 20) & (image[:, 0] < 1900)
+                          & (image[:, 1] > 0) & (image[:, 1] < 1060)]
+            if len(image) >= 15:
+                near = paint.query(image)[0]
+                near = near[near < 40]
+                if len(near) >= 10:
+                    gaps.append(float(np.median(near)))
+    return float(np.median(gaps)) if gaps else np.inf
+
+
+def _best_on_paint(F, path, meta, boxes, solved, segments, sky, followed, log):
+    """Try each way of keying the clip and keep what lies closest to the paint. Which is best
+    differs by clip, as it depends on how much paint each part of the pan shows."""
+    outer = _keys_on_paint(F, path, meta, boxes, solved, segments)
+    every = _keys_on_paint(F, path, meta, boxes, solved, segments, inside=True)
+    best = None
+    for keys in (solved, outer, every):
+        result = _project_map(F, path, meta, segments, keys, sky, 'camera', log, followed)
+        if not result:
+            continue
+        result = _with_one_camera(result, F, path, meta, boxes, log)
+        gap = _paint_gap(result, F, path, boxes, meta)
+        log(f'선 일치 {gap:.1f} px, 렌즈 {result.get("k1", 0.):+.3f}')
+        if best is None or gap < best[0]:
+            best = gap, result
+    return best[1] if best else None
 
 
 def _from_long_lens(F, cumulative, meta, boxes, inliers, log):
@@ -568,7 +670,7 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
             raise ValueError('영상 안의 프레임을 선택해 주세요.')
         anchors[k] = _fit_points(meta, k, points)
     mode = 'manual' if anchors else 'geometry'
-    followed, long_lens = None, False
+    followed, long_lens, solved = None, False, None
     if not anchors and solver_enabled():
         for segment in np.unique(segments):
             frames = np.flatnonzero(segments == segment)
@@ -586,6 +688,7 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
             # The solver ties its keys by pure rotation, which a ground-plane path is not, so only
             # the frames between and beyond the keys follow the ground.
             cumulative, followed = turf_motion(F, boxes, cumulative)
+            solved = anchors
     if not anchors:
         # Try several views on each connected shot. Failure is explicit and cannot become
         # a geometry result merely because a single candidate scored above a threshold.
@@ -608,6 +711,8 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
                     anchors[a], anchors[b] = found[a], found[b]
     if not anchors:
         return None
+    if solved is not None:
+        return _best_on_paint(F, cumulative, meta, boxes, solved, segments, sky, followed, log)
     result = _project_map(F, cumulative, meta, segments, anchors, sky, mode, log, followed)
     if result:
         result['long_lens'] = long_lens

@@ -7,7 +7,6 @@ survivors are ranked on all the paint in view. Nothing depends on the venue exce
 """
 from itertools import product
 
-import cv2
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.spatial import cKDTree
@@ -34,6 +33,8 @@ SAMPLES = 14
 MAX_PEOPLE_ERROR = .25    # median |log(predicted height / box height)|; tele boxes are looser
 MIN_FEET_ON_PITCH = .6    # ball boys, stewards and the bench stand off it
 MIN_PAINT_SHARE = .5
+TELE_LINE_WIDEST = 14.     # half-size pixels: a long lens shows paint as a wide band
+MAX_SETTLE_PX = 45.        # further than this, paint has pulled the camera onto the wrong line
 MIN_PAINTED = .4
 MIN_PEOPLE = 12          # whole people across the sampled frames of a shot
 
@@ -142,14 +143,11 @@ def long_lines(strokes, count=IMAGE_LINES, tolerance=3.):
     return np.array(lines).reshape(-1, 4)[order], np.array(weights)[order]
 
 
-def paint_points(window, limit=3000):
+def paint_points(window, limit=3000, widest=TELE_LINE_WIDEST):
     """Paint pixels of the whole window in its base view, including curves that make no stroke."""
     found = []
     for to_base, lawn, loose in window['frames'].values():
-        mask = np.uint8(loose & lawn)
-        _, label, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
-        keep = np.flatnonzero(np.maximum(stats[:, 2], stats[:, 3]) >= 14)
-        y, x = np.nonzero(np.isin(label, keep[keep != 0]))
+        y, x = np.nonzero(fs.line_paint(loose, lawn, shortest=16., widest=widest))
         if len(x):
             found.append(warp(np.c_[x, y]*2., to_base))
     if not found:
@@ -228,6 +226,21 @@ def search(window, model, meta, keep=8):
         if len(found) >= keep:
             break
     return sorted(found, key=lambda r: -r['share']*float(fs._people_weight(r['people'], r['on_pitch'])))
+
+
+def settle(H, points, model):
+    """H with its rotation and zoom corrected onto paint, or None if that explains no more of it."""
+    focal, rotation, centre = camfit.decompose(H)
+    if not np.isfinite([focal, *centre]).all():
+        return None
+    before = fs._parameters(camfit.rodrigues(rotation), centre, focal)
+    after = fs._refine_angles(before, points, model)
+    if _explained(after, points, model) < _explained(before, points, model):
+        return None
+    settled = fs._homography(after)
+    grid = np.stack(np.meshgrid(np.arange(200., 1800., 200.), np.arange(500., 1050., 100.)), -1).reshape(-1, 2)
+    moved = np.linalg.norm(warp(warp(grid, np.linalg.inv(H)), settled)-grid, axis=1)
+    return settled if np.median(moved) <= MAX_SETTLE_PX else None
 
 
 def _enough_people(feet):

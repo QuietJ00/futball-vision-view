@@ -514,7 +514,7 @@ def named_paint(c, F, boxes, frames, meta, gate=1.2, far_paint=False):
                 group = points[close & (nearest == segment)]
                 if len(group) >= 6 and (far_paint or segment != FAR_TOUCHLINE):
                     lines.append({'segment': int(segment), 'points': group, 'confidence': 1.})
-        y, x = np.nonzero(loose & lawn)
+        y, x = np.nonzero(fs.line_paint(loose, lawn, shortest=16., widest=14. if far_paint else 5.))
         paint = np.c_[x, y]*2.
         if len(paint):
             paint = paint[::max(1, len(paint)//4000)]
