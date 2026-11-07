@@ -1,4 +1,6 @@
 import numpy as np,cv2
+from scipy.linalg import fractional_matrix_power
+from scipy.spatial.transform import Rotation
 MIN_LINK_INLIERS=40
 
 def motion_segments(inliers,count):
@@ -125,3 +127,83 @@ def refine_ground_motion(frames, cumulative, boxes, reference, indices, focus, g
                      'before_px': old, 'after_px': new if accepted else old,
                      'held_out': int(test.sum())}
     return result
+
+
+def repair_cumulative(cumulative, tol_px=8.0):
+    """Repair single-frame tracking spikes in cumulative camera homographies while preserving fast pans."""
+    N = len(cumulative)
+    if N < 3:
+        return np.array(cumulative, dtype=float).copy()
+    c = np.array(cumulative, dtype=float).copy()
+    grid = np.array([[960., 540.], [300., 300.], [1620., 300.], [300., 780.], [1620., 780.]])
+    for _ in range(3):
+        spikes = []
+        for k in range(1, N - 1):
+            s_prev = c[k] @ np.linalg.inv(c[k-1])
+            s_next = c[k+1] @ np.linalg.inv(c[k])
+            s_direct = c[k+1] @ np.linalg.inv(c[k-1])
+            d_prev = warp(grid, s_prev) - grid
+            d_next = warp(grid, s_next) - grid
+            d_direct = warp(grid, s_direct) - grid
+            det = np.linalg.det(s_direct)
+            if det <= 0:
+                continue
+            s_norm = s_direct / (det ** (1.0 / 3.0))
+            s_half = np.real(fractional_matrix_power(s_norm, 0.5))
+            H_mid = s_half @ c[k-1]
+            H_mid /= H_mid[2, 2]
+            dev_from_mid = np.linalg.norm(warp(grid, c[k]) - warp(grid, H_mid), axis=1).max()
+            norm_direct = np.linalg.norm(d_direct, axis=1).max()
+            norm_prev = np.linalg.norm(d_prev, axis=1).max()
+            norm_next = np.linalg.norm(d_next, axis=1).max()
+            if dev_from_mid > tol_px and (norm_prev + norm_next > norm_direct + tol_px):
+                spikes.append((k, H_mid))
+        if not spikes:
+            break
+        for k, H_mid in spikes:
+            c[k] = H_mid
+    return c
+
+
+def refine_turf_motion(frames, boxes, cumulative, sky):
+    """Refine cumulative camera motion using consecutive turf optical flow with player masking."""
+    N = len(frames)
+    if N < 2 or cumulative is None or len(cumulative) != N:
+        return cumulative
+    new_cum = [np.array(cumulative[0], dtype=float)]
+    grid = np.array([[960., 540.], [300., 300.], [1620., 780.]])
+    for k in range(N - 1):
+        a = cv2.cvtColor(np.asarray(frames[k]), cv2.COLOR_BGR2GRAY)
+        b = cv2.cvtColor(np.asarray(frames[k+1]), cv2.COLOR_BGR2GRAY)
+        hsv = cv2.cvtColor(np.asarray(frames[k]), cv2.COLOR_BGR2HSV)
+        turf = ((hsv[..., 0] >= 25) & (hsv[..., 0] <= 95) & (hsv[..., 1] >= 30) & (hsv[..., 2] >= 30))
+        mask = np.zeros(a.shape, np.uint8)
+        mask[max(sky, 0):] = 255
+        mask &= (turf.astype(np.uint8) * 255)
+        if boxes is not None and k < len(boxes):
+            for x0, y0, x1, y1, *_ in boxes[k]:
+                mask[max(int(y0)-8, 0):min(int(y1)+8, a.shape[0]),
+                     max(int(x0)-8, 0):min(int(x1)+8, a.shape[1])] = 0
+        step_cam = cumulative[k+1] @ np.linalg.inv(cumulative[k])
+        p = cv2.goodFeaturesToTrack(a, 1500, .005, 10, mask=mask)
+        step = None
+        if p is not None and len(p) >= 30:
+            q, found, _ = cv2.calcOpticalFlowPyrLK(a, b, p, None, winSize=(31, 31), maxLevel=4)
+            back, returned, _ = cv2.calcOpticalFlowPyrLK(b, a, q, None, winSize=(31, 31), maxLevel=4)
+            keep = (found[:, 0] == 1) & (returned[:, 0] == 1) & (np.linalg.norm(back-p, axis=2)[:, 0] < .7)
+            p, q = p[keep, 0], q[keep, 0]
+            if len(p) >= 20:
+                H, inlier = cv2.findHomography(p, q, cv2.RANSAC, 1.5)
+                if H is not None and inlier is not None and inlier.sum() >= 20:
+                    det = np.linalg.det(H)
+                    if 0.5 < det < 2.0:
+                        diff = np.linalg.norm(warp(grid, H) - warp(grid, step_cam), axis=1).max()
+                        if diff <= 4.0:
+                            step = H
+        if step is None:
+            step = step_cam
+        nxt = step @ new_cum[-1]
+        new_cum.append(nxt / nxt[2, 2])
+    return np.array(new_cum)
+
+
