@@ -20,6 +20,9 @@
 - 경기장 보정이 안 될 때 쓰는 "속도 없이 만들기"
 - 경기장 인식 모델 학습용 라벨링 화면(`/label`)
 
+## 경기장 인식 모델
+이 브랜치는 PivotAnchor예요. 고정된 삼각대 축(Pivot)을 가정하고, 구장 기준 사진(Anchor)으로 초기 위치를 잡아요. 같은 저장소의 다른 엔진은 `turflens/pitch-model` 브랜치의 TurfLens예요.
+
 ## 설치
 ```bash
 python3.12 -m venv .venv
