@@ -1,5 +1,6 @@
 import unittest
 
+import cv2
 import numpy as np
 
 from autohl import field_solver as solver
@@ -29,6 +30,24 @@ def seen_people(p, ground):
         feet.append(foot)
         heights.append(foot[1]-head_y)
     return np.array(feet), np.array(heights)
+
+
+class LawnTest(unittest.TestCase):
+    @staticmethod
+    def _frame(lower):
+        hsv = np.zeros((540, 960, 3), np.uint8)
+        hsv[:200] = (10, 120, 140)   # a brown stand
+        hsv[200:] = lower
+        return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+
+    def test_turf_in_deep_shade_is_still_lawn(self):
+        lawn = solver._lawn(self._frame((60, 255, 28)))
+        self.assertTrue(lawn[300:500, 100:860].mean() > .95)
+        self.assertFalse(lawn[:150].any())
+
+    def test_a_dark_fence_is_not_lawn(self):
+        lawn = solver._lawn(self._frame((20, 120, 28)))
+        self.assertFalse(lawn[300:500].any())
 
 
 class PeopleTest(unittest.TestCase):

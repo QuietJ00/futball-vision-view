@@ -44,10 +44,8 @@ MIN_PAINT_SHARE = .5
 TELE_LINE_WIDEST = 14.     # half-size pixels: a long lens shows paint as a wide band
 MAX_SETTLE_PX = 45.        # further than this, paint has pulled the camera onto the wrong line
 MIN_PAINTED = .4
-# A wide view from a low stand is shot at night or in low sun as often as not, and turf sparkle
-# then fills the paint mask, so the right camera explains less of it. The stroke cover, which
-# only counts long lines, carries what the paint share cannot.
-WIDE_MIN_PAINT_SHARE = .35
+# A wide view is also held to the stroke cover, which only counts long lines: the paint share
+# alone can be filled by turf sparkle.
 WIDE_MIN_COVER = .5
 MIN_PEOPLE = 12          # whole people across the sampled frames of a shot
 
@@ -339,7 +337,7 @@ def solve(F, path, meta, boxes, frames, log=print):
     p = best['p']
     lowest = fs.minimum_height(p[4:7], np.exp(p[3]), meta)
     wide = np.exp(p[3]) < FOCALS[0]
-    thin = best['share'] < (WIDE_MIN_PAINT_SHARE if wide else MIN_PAINT_SHARE) or (wide and best['cover'] < WIDE_MIN_COVER)
+    thin = best['share'] < MIN_PAINT_SHARE or (wide and best['cover'] < WIDE_MIN_COVER)
     if thin or best['painted'] < MIN_PAINTED or p[6] < lowest:
         log(f'중계 카메라 후보를 믿을 수 없어요: 페인트 일치 {best["share"]:.0%}, 선 {best["painted"]:.0%}, 높이 {p[6]:.1f} m, 최소 {lowest:.1f} m')
         return None

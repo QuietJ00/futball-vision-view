@@ -57,6 +57,8 @@ def _lawn(small):
     # that boundary, which a wide closing removes.
     hue, sat, val = cv2.split(cv2.cvtColor(small, cv2.COLOR_BGR2HSV))
     grass = ((hue > 13) & (hue < 95) & (sat > 35) & (val > 62)) | ((val > 135) & (sat < 95))
+    # Turf in shade or under a dim light is still fully saturated green; fences and seats are not.
+    grass |= (hue > 40) & (hue < 85) & (sat > 200) & (val > 18)
     grass = cv2.morphologyEx(np.uint8(grass)*255, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8)) > 0
     height, width = grass.shape
     top, bottom = np.full(width, float(height)), np.full(width, float(height))
