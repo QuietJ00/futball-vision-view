@@ -69,6 +69,17 @@ class RefusalTest(unittest.TestCase):
         self.assertTrue(bp._enough_people(np.zeros((bp.MIN_PEOPLE, 2))))
 
 
+class PinnedTest(unittest.TestCase):
+    def test_a_fit_stopped_by_a_bound_is_not_trusted(self):
+        free = np.array([0., .3, 0., np.log(4000.), 50., 60., 15.])
+        self.assertFalse(bp._pinned(free, META))
+        for index, value in ((6, bp.MAX_CAMERA_M), (6, bp.MIN_CAMERA_M), (3, np.log(bp.MAX_FOCAL)),
+                             (3, np.log(bp.MIN_FOCAL)), (5, META['width']/2+120)):
+            stuck = free.copy()
+            stuck[index] = value
+            self.assertTrue(bp._pinned(stuck, META), index)
+
+
 class ShotCutTest(unittest.TestCase):
     def test_a_cut_is_found_and_a_pan_is_not(self):
         green = np.zeros((20, 90, 160, 3), np.uint8)

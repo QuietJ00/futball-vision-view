@@ -44,9 +44,13 @@ MIN_PAINT_SHARE = .5
 TELE_LINE_WIDEST = 14.     # half-size pixels: a long lens shows paint as a wide band
 MAX_SETTLE_PX = 45.        # further than this, paint has pulled the camera onto the wrong line
 MIN_PAINTED = .4
-# A wide view is also held to the stroke cover, which only counts long lines: the paint share
-# alone can be filled by turf sparkle.
+# A wide view takes in the stand and the bench with the turf, and at night turf sparkle fills the
+# paint mask, so the right camera explains a little less of it (48-55% on a camera known by hand).
+# It makes up for that on what sparkle cannot fake: long strokes, and paint under every model line.
+# Set from one camera in two clips; other venues are untested.
+WIDE_MIN_PAINT_SHARE = .4
 WIDE_MIN_COVER = .5
+WIDE_MIN_PAINTED = .5
 MIN_PEOPLE = 12          # whole people across the sampled frames of a shot
 
 
@@ -280,6 +284,15 @@ def settle(H, points, model):
     return settled if np.median(moved) <= MAX_SETTLE_PX else None
 
 
+def _pinned(p, meta):
+    """A fit that ran into the edge of what a camera may be. The best answer lies outside it, so
+    what the fit stopped at is only the nearest wall: it can lay a lot of paint on the wrong lines."""
+    focal = np.exp(p[3])
+    return bool(p[6] >= MAX_CAMERA_M-.25 or p[6] <= MIN_CAMERA_M+.25
+                or focal >= MAX_FOCAL*.99 or focal <= MIN_FOCAL*1.01
+                or p[5] >= meta['width']/2+120-.25 or p[5] <= meta['width']/2+3+.25)
+
+
 def _enough_people(feet):
     """The people check says nothing without people, and a close-up has one or two."""
     return len(feet) >= MIN_PEOPLE
@@ -326,7 +339,8 @@ def solve(F, path, meta, boxes, frames, log=print):
                 found.append(r)
     for r in found:
         r['painted'] = _painted(r['p'], points, model)
-    found = sorted((r for r in found if abs(r['people']) <= MAX_PEOPLE_ERROR and r['on_pitch'] >= MIN_FEET_ON_PITCH),
+    found = sorted((r for r in found if abs(r['people']) <= MAX_PEOPLE_ERROR and r['on_pitch'] >= MIN_FEET_ON_PITCH
+                    and not _pinned(r['p'], meta)),
                    key=lambda r: -r['share']*r['painted'])
     for r in found[:5]:
         log(f'후보 일치 {r["share"]:.0%} 선 {r["painted"]:.0%} 키 {r["people"]:+.2f} f {np.exp(r["p"][3]):.0f} 위치 {np.round(r["p"][4:7], 1).tolist()}')
@@ -337,7 +351,10 @@ def solve(F, path, meta, boxes, frames, log=print):
     p = best['p']
     lowest = fs.minimum_height(p[4:7], np.exp(p[3]), meta)
     wide = np.exp(p[3]) < FOCALS[0]
-    thin = best['share'] < MIN_PAINT_SHARE or (wide and best['cover'] < WIDE_MIN_COVER)
+    if wide:
+        thin = best['share'] < WIDE_MIN_PAINT_SHARE or best['cover'] < WIDE_MIN_COVER or best['painted'] < WIDE_MIN_PAINTED
+    else:
+        thin = best['share'] < MIN_PAINT_SHARE
     if thin or best['painted'] < MIN_PAINTED or p[6] < lowest:
         log(f'중계 카메라 후보를 믿을 수 없어요: 페인트 일치 {best["share"]:.0%}, 선 {best["painted"]:.0%}, 높이 {p[6]:.1f} m, 최소 {lowest:.1f} m')
         return None
