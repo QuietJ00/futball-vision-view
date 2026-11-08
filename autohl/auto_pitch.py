@@ -97,6 +97,9 @@ def _read_strokes(image, boxes, H, lines, sky, radius, ground=None):
     ridge = _ridge(image, boxes, sky=sky)
     height, width = ridge.shape
     found = {}
+    near = _near_touchline(ridge, H, lines[1])
+    if near is not None:
+        found[1] = near
     H_inv = np.linalg.inv(H)
     ground_fit = None
     if ground is not None and len(ground) >= 2 and np.ptp(ground[:, 0]) > 50:
@@ -186,10 +189,14 @@ def _near_touchline(ridge, H, model_line):
     height, width = ridge.shape
     x = np.arange(width)
     expected = a[1]+slope*(x-a[0])
-    visible = (x >= a[0]-20) & (x <= b[0]+20)
+    r2 = (x - width/2)**2 + (expected - height/2)**2
+    corner_distorted = (expected > .72*height) & (r2 > (.31*width)**2)
+    visible = (x >= max(64, a[0]-20)) & (x <= min(width-64, b[0]+20)) & (~corner_distorted)
+    if not visible.any():
+        return None
     strip = (np.abs(np.arange(height)[:, None]-expected) < 65.) & visible
-    mask = np.uint8((ridge > 16) & strip)*255
-    detected = cv2.HoughLinesP(mask, 1, np.pi/720, 55, minLineLength=160, maxLineGap=24)
+    mask = np.uint8((ridge > 31) & strip)*255
+    detected = cv2.HoughLinesP(mask, 1, np.pi/720, 45, minLineLength=160, maxLineGap=24)
     if detected is None:
         return None
     best = None
@@ -201,16 +208,17 @@ def _near_touchline(ridge, H, model_line):
             continue
         sy = y1+angle*(x-x1)
         cols = np.flatnonzero(visible & (sy >= 4) & (sy < height-4))[::6]
-        if len(cols) < 30:
+        if len(cols) < 25:
             continue
         rows = np.rint(sy[cols]).astype(int)
         band = rows[:, None]+np.arange(-3, 4)
         values = ridge[band, cols[:, None]]
-        use = values.max(axis=1) > 16
-        if use.sum() < max(30, .55*len(cols)):
+        peaks = values.max(axis=1)
+        use = peaks > 31
+        if use.sum() < max(25, .55*len(cols)) or np.median(peaks[use]) < 37:
             continue
         p = np.c_[cols[use], band[use, values[use].argmax(axis=1)]]
-        rank = (use.sum(), float(np.median(values[use].max(axis=1))))
+        rank = float(np.minimum(peaks[use], 85).sum())
         if best is None or rank > best[0]:
             best = rank, p
     return best[1][::max(1, len(best[1])//24)] if best is not None else None
@@ -361,13 +369,15 @@ def _bank_seeds(images, indices, bank, meta, sky, cumulative, boxes=None):
     return trusted
 
 
-def _collect_observations(images, boxes, training, checking, pose_fn, lines, meta, sky, radius):
+def _collect_observations(images, boxes, training, checking, pose_fn, lines, meta, sky, radius, allowed_lines=None):
     fit, held, fit_edge, held_edge, initial = {}, {}, {}, {}, {}
     length_m = meta.get('length', 100.)
     for k in sorted(set(training) | set(checking)):
         H = pose_fn(k)
         ground = _edge(images[k], boxes[k], H, meta['width'], length_m=length_m)
         observed = _read_strokes(images[k], boxes[k], H, lines, sky, radius=radius, ground=ground)
+        if allowed_lines is not None:
+            observed = {l: pts for l, pts in observed.items() if l in allowed_lines}
         if k in training:
             if _diverse(observed):
                 fit[k], initial[k] = observed, H
@@ -496,14 +506,16 @@ def calibrate(images, boxes, cumulative, inliers, meta, sky, lens_offset_m=0.,
                             seed_homographies=starts)
         # Re-read strokes tightly around the first-pass trajectory to eliminate initial seed drift.
         fit2, _, fit_edge2, _, initial2 = _collect_observations(
-            images, boxes, training, (), lambda k: c.matrices[k], lines, meta, sky, radius=14)
+            images, boxes, training, (), lambda k: c.matrices[k], lines, meta, sky, radius=22)
         if len(fit2) >= 2:
             starts2 = {k: initial2[k] for k in (min(initial2), max(initial2), max(fit2, key=lambda k: len(fit2[k])))}
             c = fixed_pitch.fit(cumulative, inliers, meta, fit2, lens_offset_m, fit_edge2,
                                 images=images, boxes=boxes, seed_homographies=starts2)
             fit, fit_edge = fit2, fit_edge2
+        fit_lines = {l for obs in fit.values() for l in obs}
         _, held2, _, held_edge2, _ = _collect_observations(
-            images, boxes, (), checking, lambda k: c.matrices[k], lines, meta, sky, radius=24)
+            images, boxes, (), checking, lambda k: c.matrices[k], lines, meta, sky, radius=22,
+            allowed_lines=fit_lines)
         if held2:
             held, held_edge = held2, held_edge2
     except (ValueError, np.linalg.LinAlgError) as e:
