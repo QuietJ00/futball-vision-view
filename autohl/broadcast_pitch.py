@@ -16,16 +16,24 @@ from . import field_solver as fs
 from . import pitch
 from .camera import warp
 
-MIN_FOCAL, MAX_FOCAL = 1200., 14000.
-MIN_CAMERA_M, MAX_CAMERA_M = 6., 45.
+MIN_FOCAL, MAX_FOCAL = 650., 14000.
+MIN_CAMERA_M, MAX_CAMERA_M = 4., 45.
 SETBACKS_M = (8., 14., 20., 28., 38., 52., 70.)   # behind the touchline
 HEIGHTS_M = (7., 10., 13., 17., 22., 29., 38.)
 ALONG_M = (-30., -18., -9., -3., 3., 9., 18., 30.)   # from the halfway line
 FOCALS = np.geomspace(1500., 8000., 14)
+# A wide lens from a low stand: close to the touchline, a few metres up, 60-90 degrees across.
+WIDE_SETBACKS_M = (3., 6., 10., 16.)
+WIDE_HEIGHTS_M = (5., 7., 9., 12., 16.)
+WIDE_FOCALS = np.geomspace(700., 1500., 10)
 ANGLE_TOLERANCE = .1                     # share of the angle between the two planes
 MAX_ROLL = np.radians(4.)
+LEVEL = .9                 # cosine of the most a tele camera looks down from level
+WIDE_LEVEL = .75           # a camera 9 m up and close to the touchline looks down 30 degrees or more
 IMAGE_LINES = 12
 PRESELECT = 250
+SETTLED_LOOKED_AT = 400
+PRESELECT_WIDE = 1000     # people thin them first, and the right one is not always the best paint
 PAINT_REACH_PX = 8.
 KEYS_PER_SHOT = 8
 VIEWS = 5
@@ -36,11 +44,21 @@ MIN_PAINT_SHARE = .5
 TELE_LINE_WIDEST = 14.     # half-size pixels: a long lens shows paint as a wide band
 MAX_SETTLE_PX = 45.        # further than this, paint has pulled the camera onto the wrong line
 MIN_PAINTED = .4
+# A wide view from a low stand is shot at night or in low sun as often as not, and turf sparkle
+# then fills the paint mask, so the right camera explains less of it. The stroke cover, which
+# only counts long lines, carries what the paint share cannot.
+WIDE_MIN_PAINT_SHARE = .35
+WIDE_MIN_COVER = .5
 MIN_PEOPLE = 12          # whole people across the sampled frames of a shot
 
 
 def _positions(meta):
     return np.array([(meta['length']/2+a, meta['width']/2+s, -h) for a, s, h in product(ALONG_M, SETBACKS_M, HEIGHTS_M)])
+
+
+def _wide_positions(meta):
+    return np.array([(meta['length']/2+a, meta['width']/2+s, -h)
+                     for a, s, h in product(ALONG_M, WIDE_SETBACKS_M, WIDE_HEIGHTS_M)])
 
 
 def _model(meta):
@@ -71,12 +89,21 @@ def _triad(u, v):
 
 
 def candidates(lines, meta):
-    """Homographies and focal lengths for every pair of image lines named as a pair of model lines."""
-    centres = _positions(meta)
+    """Homographies and focal lengths for every pair of image lines named as a pair of model lines,
+    for a tele view from high up and for a wide view from a low stand."""
+    found = [_candidates(lines, meta, _positions(meta), FOCALS, LEVEL),
+             _candidates(lines, meta, _wide_positions(meta), WIDE_FOCALS, WIDE_LEVEL)]
+    found = [f for f in found if len(f[0])]
+    if not found:
+        return np.empty((0, 3, 3)), np.empty(0)
+    return np.concatenate([f[0] for f in found]), np.concatenate([f[1] for f in found])
+
+
+def _candidates(lines, meta, centres, focals, level):
     _, a, b = _model(meta)
     world = np.cross(a[None]-centres[:, None], b[None]-centres[:, None])
     world /= np.linalg.norm(world, axis=2, keepdims=True)
-    planes = _image_planes(lines, FOCALS)
+    planes = _image_planes(lines, focals)
     i, j = np.triu_indices(len(lines), 1)
     image = planes[:, i], planes[:, j]
     m, n = np.nonzero(~np.eye(len(a), dtype=bool))
@@ -96,10 +123,10 @@ def candidates(lines, meta):
                 v_c = flip*s2*image[1][fi, pi]
                 R = _triad(u_c, v_c) @ _triad(world[c, m[qi]], world[c, n[qi]]).transpose(0, 2, 1)
                 # Level camera, looking down at the ground, the pitch ahead of it.
-                ok = (np.abs(np.arcsin(np.clip(R[:, 0, 2], -1, 1))) < MAX_ROLL) & (R[:, 1, 2] > .9) & (R[:, 2, 2] > .02)
+                ok = (np.abs(np.arcsin(np.clip(R[:, 0, 2], -1, 1))) < MAX_ROLL) & (R[:, 1, 2] > level) & (R[:, 2, 2] > .02)
                 if ok.any():
                     R = R[ok]
-                    f = FOCALS[fi[ok]]
+                    f = focals[fi[ok]]
                     t = -R @ centre
                     K = np.zeros((len(f), 3, 3))
                     K[:, 0, 0], K[:, 1, 1], K[:, 2, 2] = f, f, 1.
@@ -206,16 +233,28 @@ def search(window, model, meta, keep=8):
         return []
     template = fs._soft_template(meta, sigma=2.)
     rank = fs._paint_rank(H, points[::4], template)
-    best = np.argsort(-rank)[:PRESELECT]
-    H, focal = H[best], focal[best]
-    R, centre = fs._poses(H, focal)
+    R_all, centre_all = fs._poses(H, focal)
+    # A long lens lays some line near most paint, so it outranks a wide lens that is right.
+    # Each kind competes only with its own.
+    wide = focal < FOCALS[0]
+    if wide.any() and len(feet) >= 4:
+        # Paint alone cannot pick a wide camera out of noisy turf, but people have to stand on the
+        # pitch at their own height, which a wrong camera cannot fake.
+        R_w, centre_w, focal_w = R_all[wide], centre_all[wide], focal[wide]
+        parts = [fs._people_fit(R_w[i], centre_w[i], focal_w[i], feet, seen, meta)
+                 for i in np.array_split(np.arange(len(R_w)), len(R_w)//3000+1)]
+        rank[wide] *= .15+fs._people_weight(np.concatenate([a for a, _ in parts]), np.concatenate([b for _, b in parts]))
+    best = np.concatenate([np.flatnonzero(kind)[np.argsort(-rank[kind])[:keep_n]] for kind, keep_n in ((wide, PRESELECT_WIDE), (~wide, PRESELECT))])
+    H, focal, R, centre = H[best], focal[best], R_all[best], centre_all[best]
     settled = []
     for i in range(len(H)):
         p = _fit(fs._parameters(R[i], centre[i], focal[i]), points, model, free=False)
-        settled.append((_explained(p, points, model), i, p))
+        # Paint on some line is not enough: a long lens lays paint on lines everywhere, and only
+        # the right camera also finds paint where the model says there is a line.
+        settled.append((_explained(p, points, model)*_painted(p, points, model), i, p))
     settled.sort(key=lambda s: -s[0])
     found, used = [], []
-    for share, _, p in settled[:40]:
+    for share, _, p in settled[:SETTLED_LOOKED_AT]:   # many seeds settle to one camera
         if any(np.abs(p[:4]-u[:4]).max() < .005 for u in used):
             continue
         used.append(p)
@@ -299,7 +338,9 @@ def solve(F, path, meta, boxes, frames, log=print):
     best = found[0]
     p = best['p']
     lowest = fs.minimum_height(p[4:7], np.exp(p[3]), meta)
-    if best['share'] < MIN_PAINT_SHARE or best['painted'] < MIN_PAINTED or p[6] < lowest:
+    wide = np.exp(p[3]) < FOCALS[0]
+    thin = best['share'] < (WIDE_MIN_PAINT_SHARE if wide else MIN_PAINT_SHARE) or (wide and best['cover'] < WIDE_MIN_COVER)
+    if thin or best['painted'] < MIN_PAINTED or p[6] < lowest:
         log(f'중계 카메라 후보를 믿을 수 없어요: 페인트 일치 {best["share"]:.0%}, 선 {best["painted"]:.0%}, 높이 {p[6]:.1f} m, 최소 {lowest:.1f} m')
         return None
     log(f'중계 카메라 ({p[4]:.1f}, {p[5]:.1f}) 높이 {p[6]:.1f} m, 초점거리 {np.exp(p[3]):.0f} px, 페인트 일치 {best["share"]:.0%}')

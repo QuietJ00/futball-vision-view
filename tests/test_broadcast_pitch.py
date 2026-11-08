@@ -32,6 +32,29 @@ class TwoLineCameraTest(unittest.TestCase):
         gaps = [np.median(np.linalg.norm(camera.warp(world, candidate)-grid, axis=1)) for candidate in found]
         self.assertLess(min(gaps), .5)
 
+    def test_two_named_lines_recover_a_known_wide_camera_from_a_low_stand(self):
+        # An Alfheim-like camera: 6 m behind the touchline, 9 m up, 870 px lens.
+        wide = np.array([.0, .5, 0., np.log(870.), 49.6, 40.3, 9.])
+        H = fs._homography(wide)
+        lines = np.array([visible_ends(H, 2), visible_ends(H, 4)])
+        grid = np.stack(np.meshgrid(np.arange(200., 1800, 300), np.arange(200., 1000, 200)), -1).reshape(-1, 2)
+        world = camera.warp(grid, np.linalg.inv(H))
+        original = bp._wide_positions, bp.WIDE_FOCALS
+        bp._wide_positions, bp.WIDE_FOCALS = (lambda meta: wide[4:7]*[[1, 1, -1]]), np.array([870.])
+        try:
+            found, focal = bp.candidates(lines, META)
+        finally:
+            bp._wide_positions, bp.WIDE_FOCALS = original
+        wide_found = found[focal < bp.FOCALS[0]]
+        self.assertGreater(len(wide_found), 0)
+        gaps = [np.median(np.linalg.norm(camera.warp(world, candidate)-grid, axis=1)) for candidate in wide_found]
+        self.assertLess(min(gaps), .5)
+
+    def test_the_wide_grid_reaches_lenses_the_tele_grid_does_not(self):
+        self.assertLess(bp.WIDE_FOCALS.max(), bp.FOCALS.min()+1e-6)
+        self.assertLess(bp.WIDE_FOCALS.min(), 800.)
+        self.assertLess(min(bp.WIDE_SETBACKS_M), min(bp.SETBACKS_M))
+
     def test_pieces_of_one_line_join(self):
         pieces = np.array([[0., 100., 300., 110.], [400., 113.3, 700., 123.3], [100., 500., 100., 900.]])
         lines, weights = bp.long_lines(pieces)
