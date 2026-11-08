@@ -285,12 +285,13 @@ def settle(H, points, model):
 
 
 def _pinned(p, meta):
-    """A fit that ran into the edge of what a camera may be. The best answer lies outside it, so
-    what the fit stopped at is only the nearest wall: it can lay a lot of paint on the wrong lines."""
+    """A fit that ran into the height or focal limit. The best answer lies outside it, so what the
+    fit stopped at is only the nearest wall: it can lay a lot of paint on the wrong lines. How far
+    behind the touchline the camera sits is a loose bound, not a physical one, and Anfield's real
+    camera sits against it, so that one is not tested."""
     focal = np.exp(p[3])
     return bool(p[6] >= MAX_CAMERA_M-.25 or p[6] <= MIN_CAMERA_M+.25
-                or focal >= MAX_FOCAL*.99 or focal <= MIN_FOCAL*1.01
-                or p[5] >= meta['width']/2+120-.25 or p[5] <= meta['width']/2+3+.25)
+                or focal >= MAX_FOCAL*.99 or focal <= MIN_FOCAL*1.01)
 
 
 def _enough_people(feet):

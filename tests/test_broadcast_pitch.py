@@ -74,10 +74,14 @@ class PinnedTest(unittest.TestCase):
         free = np.array([0., .3, 0., np.log(4000.), 50., 60., 15.])
         self.assertFalse(bp._pinned(free, META))
         for index, value in ((6, bp.MAX_CAMERA_M), (6, bp.MIN_CAMERA_M), (3, np.log(bp.MAX_FOCAL)),
-                             (3, np.log(bp.MIN_FOCAL)), (5, META['width']/2+120)):
+                             (3, np.log(bp.MIN_FOCAL))):
             stuck = free.copy()
             stuck[index] = value
             self.assertTrue(bp._pinned(stuck, META), index)
+
+    def test_a_camera_against_the_setback_limit_is_not_called_pinned(self):
+        near = np.array([0., .3, 0., np.log(4800.), 50., META['width']/2+3, 12.7])
+        self.assertFalse(bp._pinned(near, META))
 
 
 class ShotCutTest(unittest.TestCase):
