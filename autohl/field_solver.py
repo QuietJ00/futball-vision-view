@@ -53,7 +53,9 @@ def _lawn(small):
     # longest vertical run of each column. A leak up a green fence is a narrow upward spike in
     # that boundary, which a wide closing removes.
     hue, sat, val = cv2.split(cv2.cvtColor(small, cv2.COLOR_BGR2HSV))
-    grass = ((hue > 13) & (hue < 95) & (sat > 35) & (val > 62)) | ((val > 135) & (sat < 95))
+    grass = (((hue > 13) & (hue < 95) & (sat > 35) & (val > 62))
+             | ((hue > 25) & (hue < 85) & (sat > 50) & (val > 18))
+             | ((val > 135) & (sat < 95)))
     grass = cv2.morphologyEx(np.uint8(grass)*255, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8)) > 0
     height, width = grass.shape
     top, bottom = np.full(width, float(height)), np.full(width, float(height))
@@ -90,6 +92,25 @@ def _strokes(image, boxes, yellow):
     segments = cv2.HoughLinesP(mask, 1, np.pi/720, 22, minLineLength=28, maxLineGap=7)
     segments = np.empty((0, 4)) if segments is None else segments.reshape(-1, 4).astype(float)*2
     return segments, lawn, relative >= 1.5
+
+
+def line_paint(loose, lawn, shortest=28., widest=5.):
+    """Paint that is long and thin. Floodlit turf sparkles in short bright flecks that sit near any
+    line, so taking them as paint pulls a fit toward nothing and makes every line look close."""
+    mask = np.uint8(loose & lawn)
+    count, label, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    span = np.hypot(stats[:, cv2.CC_STAT_WIDTH], stats[:, cv2.CC_STAT_HEIGHT])
+    keep = (span >= shortest) & (stats[:, cv2.CC_STAT_AREA] <= widest*span)
+    keep[0] = False
+    return keep[label]
+
+
+def minimum_height(position, focal, meta):
+    """Lowest camera, in metres, that keeps feet on the far touchline within the allowed error."""
+    far = abs(position[1]) + meta['width']/2
+    if not 0 <= position[0] <= meta['length']:
+        far = max(far, abs(position[0]-meta['length']/2) + meta['length']/2)
+    return max(3.0, 2.3 * far**2 / (2.5 * focal))
 
 
 def _far_edge(image, boxes):
@@ -690,9 +711,11 @@ def _solve_keys(windows, group, cumulative, focal, fixed_focal, model):
             else np.r_[p[:3], np.log(focal), position] for w, p in keys.items()}, position, focal
 
 
-def _rejection(keys, windows, gap, people, on_pitch, height):
+def _rejection(keys, windows, gap, people, on_pitch, height, lowest=0.):
     """Why a solved camera should not be used, or None. A refusal sends the clip to manual marks."""
-    if height < MIN_TRUSTED_HEIGHT:
+    if height < max(MIN_TRUSTED_HEIGHT, lowest):
+        if lowest > 0 and height >= MIN_TRUSTED_HEIGHT:
+            return f'카메라가 낮아요 ({height:.1f} m, 이 위치와 화각의 최소 높이 {lowest:.1f} m)'
         return f'카메라가 낮아요 ({height:.1f} m)'
     if keys < min(2, windows):
         return f'페인트선이 설명되는 구간이 부족해요 ({keys}개)'
@@ -725,10 +748,11 @@ def solve(F, cumulative, meta, boxes, frames, log=print):
     group = groups[0]
     motion_focal = focal_from_motion(cumulative, frames)
     paint_focal = float(np.median([np.exp(p[3]) for p, _ in group['best'].values()]))
-    trials = [motion_focal*x for x in (.92, .96, 1., 1.04, 1.08)] if motion_focal else [paint_focal]
+    trials = ([(motion_focal*x, True) for x in (.92, .96, 1., 1.04, 1.08)] + [(paint_focal, False)]
+              if motion_focal else [(paint_focal, False)])
     best = None
-    for focal in trials:
-        keys, position, focal = _solve_keys(windows, group, cumulative, focal, motion_focal is not None, model)
+    for focal, fixed_focal in trials:
+        keys, position, focal = _solve_keys(windows, group, cumulative, focal, fixed_focal, model)
         rated = {w: _rate(p, windows[w], model, meta) for w, p in keys.items() if len(windows[w]['strokes'])}
         explained = sum(r['cover']**2 for r in rated.values())
         if best is None or explained > best[0]:
@@ -744,7 +768,8 @@ def solve(F, cumulative, meta, boxes, frames, log=print):
     gaps = [pitch._gap(pitch.chain(cumulative, a, b, strong[a]), strong[b], 0, grid)
             for a, b in zip(ordered, ordered[1:])]
     worst = max((g for g in gaps if np.isfinite(g)), default=0.)
-    problem = _rejection(len(strong), len(windows), worst, people, on_pitch, position[2])
+    lowest = minimum_height(position, focal, meta)
+    problem = _rejection(len(strong), len(windows), worst, people, on_pitch, position[2], lowest=lowest)
     if problem:
         log(f'카메라 후보를 믿을 수 없어요: {problem}')
         return None

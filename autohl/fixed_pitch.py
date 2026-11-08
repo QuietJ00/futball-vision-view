@@ -278,7 +278,7 @@ def fit(cumulative, inliers, meta, marks, lens_offset_m=0., far_edges=None, *, i
         R = camfit.rodrigues(rotation)
         pivot = centre - lens_offset_m*R[2]
         params = field_solver._parameters(R, pivot, focal)
-        if np.isfinite(params).all() and 1 < params[6] < 40 and 250 < focal < 6000:
+        if np.isfinite(params).all() and 1 < params[6] < 45 and 250 < focal < 14000:
             candidates.append((frame, params))
     if not candidates:
         raise ValueError('Mark at least four distinct straight lines on one clear reference frame.')
@@ -288,7 +288,7 @@ def fit(cumulative, inliers, meta, marks, lens_offset_m=0., far_edges=None, *, i
     frame_indices = np.asarray(frames)
     lower, upper = (
         [-4*np.pi, -1.55, -np.pi, np.log(250), -2*meta['length'], -3*meta['width'], .5],
-        [4*np.pi, 1.55, np.pi, np.log(6000), 3*meta['length'], 3*meta['width'], 80],
+        [4*np.pi, 1.55, np.pi, np.log(14000), 3*meta['length'], 3*meta['width'], 80],
     )
 
     # Calculate world X-span of observed lines to anchor pivot/focal when geometry is degenerate
@@ -302,8 +302,10 @@ def fit(cumulative, inliers, meta, marks, lens_offset_m=0., far_edges=None, *, i
             all_x.extend(feat[1][:, 0])
     x_span = float(max(all_x) - min(all_x)) if all_x else 0.0
 
-    w_pivot = 3.5 if x_span < meta['length'] * 0.55 else 1.5
-    w_focal = 18.0 if x_span < meta['length'] * 0.55 else 8.0
+    has_goal = bool((obs_indices & {0, 3}) and (obs_indices & {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}))
+    is_narrow = (x_span < meta['length'] * 0.55) and not has_goal
+    w_pivot = 3.5 if is_narrow else 1.5
+    w_focal = 18.0 if is_narrow else 8.0
 
     def corrections(params, reference):
         # The reference rotation is already represented by the first three parameters.
@@ -411,7 +413,8 @@ def supported_frames(calibration, holdout_errors, threshold_px, max_gap_frames, 
                 else:
                     all_x.extend(feat[1][:, 0])
         x_span = float(max(all_x) - min(all_x)) if all_x else 0.0
-        if x_span < meta['length'] * 0.55 and not has_far_edge:
+        has_goal = bool((observed_lines & {0, 3}) and (observed_lines & {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}))
+        if x_span < meta['length'] * 0.55 and not has_far_edge and not has_goal:
             return np.zeros(len(calibration.matrices), dtype=bool)
 
     frames = sorted(k for k, lines in holdout_errors.items()
@@ -420,8 +423,7 @@ def supported_frames(calibration, holdout_errors, threshold_px, max_gap_frames, 
     if frames:
         valid_frames = [f for f in frames if all(line['p90_px'] <= threshold_px
                                                  for line in holdout_errors[f].values())]
-        total_checking = len([k for k in range(6, len(calibration.matrices)-1, 12) if calibration.same_segment[k]]) + 2
-        if len(frames) >= 4 and len(valid_frames) / max(total_checking, 1) < 0.80:
+        if len(frames) >= 4 and len(valid_frames) / max(len(frames), 1) < 0.80:
             return valid
         for k in np.flatnonzero(calibration.same_segment):
             nearest = min(frames, key=lambda j: (abs(j-k), j))

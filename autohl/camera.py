@@ -3,6 +3,37 @@ from scipy.linalg import fractional_matrix_power
 from scipy.spatial.transform import Rotation
 MIN_LINK_INLIERS=40
 
+def distort(points, k1, focal):
+    p = np.asarray(points, float)
+    if not k1:
+        return p
+    x = (p - [960., 540.]) / focal
+    return np.array([960., 540.]) + x * (1 + k1 * (x * x).sum(1, keepdims=True)) * focal
+
+def undistort(points, k1, focal):
+    p = np.asarray(points, float)
+    if not k1:
+        return p
+    r = np.linalg.norm(p - [960., 540.], axis=1, keepdims=True) / focal
+    x = r.copy()
+    for _ in range(8):
+        x = x - (x * (1 + k1 * x * x) - r) / np.maximum(1 + 3 * k1 * x * x, .2)
+    return np.array([960., 540.]) + (p - [960., 540.]) * np.where(r > 1e-9, x / np.maximum(r, 1e-12), 1.)
+
+def pinhole_motion(cum, k1, focal):
+    if not k1:
+        return cum
+    y, x = np.mgrid[60:1040:140, 60:1880:180]
+    grid = np.c_[x.ravel(), y.ravel()].astype(float)
+    straight = undistort(grid, k1, focal)
+    out = [np.eye(3)]
+    for C in cum[1:]:
+        moved = warp(grid, C)
+        keep = np.isfinite(moved).all(1)
+        H, _ = cv2.findHomography(straight[keep], undistort(moved[keep], k1, focal), 0)
+        out.append(H)
+    return np.array(out)
+
 def motion_segments(inliers,count):
  # inliers[i] measures the link into frame i. Frame 0 has no preceding link.
  segments=np.zeros(count,dtype=int)
@@ -165,45 +196,97 @@ def repair_cumulative(cumulative, tol_px=8.0):
     return c
 
 
-def refine_turf_motion(frames, boxes, cumulative, sky):
+def _turf_mask(image, boxes):
+    hsv = cv2.cvtColor(np.ascontiguousarray(image), cv2.COLOR_BGR2HSV)
+    turf = ((hsv[..., 0] > 25) & (hsv[..., 0] < 95) & (hsv[..., 1] > 35)).astype(np.uint8)*255
+    turf = cv2.morphologyEx(turf, cv2.MORPH_CLOSE, np.ones((25, 25), np.uint8))
+    if boxes is not None:
+        for x0, y0, x1, y1, *_ in boxes:
+            turf[max(int(y0)-8, 0):int(y1)+8, max(int(x0)-8, 0):int(x1)+8] = 0
+    return turf
+
+
+def _turf_step(first, second, mask, smooth_grass=False):
+    """Homography from one frame to the next, measured on the ground. None if it is unclear."""
+    if smooth_grass:
+        lift = cv2.createCLAHE(3., (8, 8))
+        first, second = lift.apply(first), lift.apply(second)
+    points = cv2.goodFeaturesToTrack(first, 2500 if smooth_grass else 1500, .003 if smooth_grass else .005, 10, mask=mask)
+    if points is None or len(points) < 30:
+        return None
+    lk = dict(winSize=(41, 41), maxLevel=5) if smooth_grass else dict(winSize=(31, 31), maxLevel=4)
+    moved, found, _ = cv2.calcOpticalFlowPyrLK(first, second, points, None, **lk)
+    back, returned, _ = cv2.calcOpticalFlowPyrLK(second, first, moved, None, **lk)
+    keep = (found[:, 0] == 1) & (returned[:, 0] == 1) & (np.linalg.norm(back-points, axis=2)[:, 0] < .7)
+    if keep.sum() < MIN_LINK_INLIERS:
+        return None
+    H, inliers = cv2.findHomography(points[keep, 0], moved[keep, 0], cv2.RANSAC, 1.5)
+    if H is None or inliers.sum() < MIN_LINK_INLIERS or not .5 < np.linalg.det(H/H[2, 2]) < 2:
+        return None
+    return H
+
+
+def _whip_step(first, second, first_boxes):
+    """A pan too fast to track, matched across the whole frame. None on a cut."""
+    mask = np.full(first.shape[:2], 255, np.uint8)
+    if first_boxes is not None:
+        for x0, y0, x1, y1, *_ in first_boxes:
+            mask[max(int(y0)-8, 0):int(y1)+8, max(int(x0)-8, 0):int(x1)+8] = 0
+    sift = cv2.SIFT_create(3000)
+    a, b = (sift.detectAndCompute(cv2.cvtColor(np.ascontiguousarray(x), cv2.COLOR_BGR2GRAY), m)
+            for x, m in ((first, mask), (second, None)))
+    if a[1] is None or b[1] is None or len(a[1]) < 30 or len(b[1]) < 30:
+        return None
+    good = [m for m, n in cv2.BFMatcher(cv2.NORM_L2).knnMatch(a[1], b[1], k=2) if m.distance < .7*n.distance]
+    if len(good) < MIN_LINK_INLIERS:
+        return None
+    H, inliers = cv2.findHomography(np.float32([a[0][m.queryIdx].pt for m in good]),
+                                    np.float32([b[0][m.trainIdx].pt for m in good]), cv2.USAC_MAGSAC, 2.)
+    return H if H is not None and inliers.sum() >= MIN_LINK_INLIERS else None
+
+
+def shot_cuts(frames, change=.3):
+    """Frames that open a new shot. A pan keeps the colours of a view, a cut replaces them."""
+    cuts, last = [], None
+    for k in range(len(frames)):
+        small = cv2.resize(np.ascontiguousarray(frames[k]), (160, 90), interpolation=cv2.INTER_AREA)
+        hist = cv2.calcHist([cv2.cvtColor(small, cv2.COLOR_BGR2HSV)], [0, 1], None, [30, 16], [0, 180, 0, 256])
+        cv2.normalize(hist, hist)
+        if last is not None and cv2.compareHist(last, hist, cv2.HISTCMP_BHATTACHARYYA) > change:
+            cuts.append(k)
+        last = hist
+    return cuts
+
+
+def turf_motion(frames, boxes, cumulative, smooth_grass=False):
+    """Rebuild the camera path from frame-to-frame ground motion."""
+    path = [np.array(cumulative[0], float)]
+    measured = np.zeros(len(cumulative), bool)
+    current = cv2.cvtColor(np.ascontiguousarray(frames[0]), cv2.COLOR_BGR2GRAY)
+    for k in range(len(cumulative)-1):
+        following = cv2.cvtColor(np.ascontiguousarray(frames[k+1]), cv2.COLOR_BGR2GRAY)
+        boxes_k = boxes[k] if boxes is not None and k < len(boxes) else ()
+        mask = _turf_mask(frames[k], boxes_k)
+        step = _turf_step(current, following, mask, smooth_grass)
+        if step is None and not smooth_grass:
+            step = _turf_step(current, following, mask, smooth_grass=True)
+        measured[k+1] = step is not None
+        if step is None:
+            step = _whip_step(frames[k], frames[k+1], boxes_k)
+        if step is None:
+            step = cumulative[k+1] @ np.linalg.inv(cumulative[k])
+        path.append(step @ path[-1])
+        path[-1] = path[-1]/path[-1][2, 2]
+        current = following
+    return np.array(path), measured
+
+
+def refine_turf_motion(frames, boxes, cumulative, sky=0):
     """Refine cumulative camera motion using consecutive turf optical flow with player masking."""
     N = len(frames)
     if N < 2 or cumulative is None or len(cumulative) != N:
         return cumulative
-    new_cum = [np.array(cumulative[0], dtype=float)]
-    grid = np.array([[960., 540.], [300., 300.], [1620., 780.]])
-    for k in range(N - 1):
-        a = cv2.cvtColor(np.asarray(frames[k]), cv2.COLOR_BGR2GRAY)
-        b = cv2.cvtColor(np.asarray(frames[k+1]), cv2.COLOR_BGR2GRAY)
-        hsv = cv2.cvtColor(np.asarray(frames[k]), cv2.COLOR_BGR2HSV)
-        turf = ((hsv[..., 0] >= 25) & (hsv[..., 0] <= 95) & (hsv[..., 1] >= 30) & (hsv[..., 2] >= 30))
-        mask = np.zeros(a.shape, np.uint8)
-        mask[max(sky, 0):] = 255
-        mask &= (turf.astype(np.uint8) * 255)
-        if boxes is not None and k < len(boxes):
-            for x0, y0, x1, y1, *_ in boxes[k]:
-                mask[max(int(y0)-8, 0):min(int(y1)+8, a.shape[0]),
-                     max(int(x0)-8, 0):min(int(x1)+8, a.shape[1])] = 0
-        step_cam = cumulative[k+1] @ np.linalg.inv(cumulative[k])
-        p = cv2.goodFeaturesToTrack(a, 1500, .005, 10, mask=mask)
-        step = None
-        if p is not None and len(p) >= 30:
-            q, found, _ = cv2.calcOpticalFlowPyrLK(a, b, p, None, winSize=(31, 31), maxLevel=4)
-            back, returned, _ = cv2.calcOpticalFlowPyrLK(b, a, q, None, winSize=(31, 31), maxLevel=4)
-            keep = (found[:, 0] == 1) & (returned[:, 0] == 1) & (np.linalg.norm(back-p, axis=2)[:, 0] < .7)
-            p, q = p[keep, 0], q[keep, 0]
-            if len(p) >= 20:
-                H, inlier = cv2.findHomography(p, q, cv2.RANSAC, 1.5)
-                if H is not None and inlier is not None and inlier.sum() >= 20:
-                    det = np.linalg.det(H)
-                    if 0.5 < det < 2.0:
-                        diff = np.linalg.norm(warp(grid, H) - warp(grid, step_cam), axis=1).max()
-                        if diff <= 4.0:
-                            step = H
-        if step is None:
-            step = step_cam
-        nxt = step @ new_cum[-1]
-        new_cum.append(nxt / nxt[2, 2])
-    return np.array(new_cum)
+    path, _ = turf_motion(frames, boxes, cumulative)
+    return path
 
 

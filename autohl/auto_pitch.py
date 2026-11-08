@@ -6,7 +6,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from . import camera, field_geometry, field_solver, fixed_pitch, pitch
+from . import camera, field_geometry, field_solver, fixed_pitch, hybrid_calib, pitch
 
 
 @dataclass
@@ -19,10 +19,19 @@ class Result:
     reason: str | None = None
 
 
-PAINT_FEATURES = (4, 5, 6, 7, 11, 12, 13, 17, 18, 19)
+PAINT_FEATURES = (0, 3, 4, 5, 6, 7, 11, 12, 13, 17, 18, 19)
+
+
+def _active_x_bounds(image):
+    col_max = image.max(axis=(0, 2))
+    active = np.flatnonzero(col_max > 8)
+    if len(active) < image.shape[1] * 0.5:
+        return 0, image.shape[1]
+    return int(active[0]), int(active[-1]) + 1
 
 
 def _ridge(image, boxes, sky=0):
+    x0, x1 = _active_x_bounds(image)
     grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype(np.float32)
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     grey -= .30*hsv[..., 1]
@@ -35,6 +44,10 @@ def _ridge(image, boxes, sky=0):
     ridge[-16:, :] = 0
     ridge[:, :16] = 0
     ridge[:, -16:] = 0
+    if x0 > 0:
+        ridge[:, :x0+16] = 0
+    if x1 < image.shape[1]:
+        ridge[:, x1-16:] = 0
     for x, y, x2, y2, *_ in boxes.astype(int):
         ridge[max(0, y-4):y2+5, max(0, x-4):x2+5] = 0
     return ridge
@@ -90,7 +103,7 @@ def _read_strokes(image, boxes, H, lines, sky, radius, ground=None):
         ground_fit = np.polyfit(ground[:, 0], ground[:, 1], 1)
     projected_lines = {idx: camera.warp(lines[idx], H).astype(float) for idx in PAINT_FEATURES}
     for index in PAINT_FEATURES:
-        r_cur = min(radius, 10) if index in (17, 18, 19) else radius
+        r_cur = radius
         offsets = np.arange(-r_cur, r_cur+1, dtype=float)
         line = lines[index]
         pixels = projected_lines[index]
@@ -123,6 +136,7 @@ def _read_strokes(image, boxes, H, lines, sky, radius, ground=None):
             else:
                 cross_mask = np.zeros(len(p), bool)
         else:
+            other_all = np.empty((0, 2))
             cross_mask = np.zeros(len(p), bool)
         samples = p[:, None]+normal[:, None]*offsets[None, :, None]
         profile = cv2.remap(ridge, samples[..., 0].astype(np.float32),
@@ -134,9 +148,14 @@ def _read_strokes(image, boxes, H, lines, sky, radius, ground=None):
         delta = offsets[best]
         coherence = np.abs(delta - cv2.medianBlur(delta.astype(np.float32).reshape(-1, 1), 5)[:, 0])
         contrast = along.max(axis=1) - along.mean(axis=1)
-        keep = (strength >= 8.0) & (contrast >= 3.5) & (coherence <= 3.0) & (np.abs(delta) < r_cur-1) & (~cross_mask)
+        xy = samples[np.arange(len(p)), best]
+        if len(other_all):
+            d2_xy = ((xy[:, None, :] - other_all[None, :, :])**2).sum(axis=2).min(axis=1)
+            stolen = (np.abs(delta) >= 7) & ((d2_xy < 6.**2) | ((index >= 18) & (d2_xy < (delta**2))))
+        else:
+            stolen = np.zeros(len(p), bool)
+        keep = (strength >= 8.0) & (contrast >= 3.5) & (coherence <= 3.0) & (np.abs(delta) < r_cur-1) & (~cross_mask) & (~stolen)
         if ground_fit is not None:
-            xy = samples[np.arange(len(p)), best]
             bottom = ground_fit[0]*xy[:, 0] + ground_fit[1]
             keep &= xy[:, 1] >= bottom-2
         if keep.sum() < max(7, .33*len(p)):
@@ -147,7 +166,8 @@ def _read_strokes(image, boxes, H, lines, sky, radius, ground=None):
         s_idx = idx_take[keep]
         n_keep = normal[keep]
         agree = _consistent(points, d_keep, s_idx, index < 17, normal=n_keep, total_samples=len(line))
-        if agree.sum() < max(7, .55*len(points)) or np.ptp(points[agree], axis=0).max() < 75:
+        min_span = 60 if index < 17 else 75
+        if agree.sum() < max(7, .55*len(points)) or np.ptp(points[agree], axis=0).max() < min_span:
             continue
         points = points[agree]
         found[index] = points[::max(1, len(points)//24)]
@@ -385,8 +405,76 @@ def calibrate(images, boxes, cumulative, inliers, meta, sky, lens_offset_m=0.,
         reference = pitch.auto(images, cumulative, venue, sky, log=log, boxes=boxes, inliers=inliers)
         if reference:
             seeds = {k: H for k, H, *_ in reference['bases'] if segments[k] == segments[indices[0]]}
+
+    is_broadcast = False
     if not seeds:
-        return fail('No consistent automatic pitch pose was found.')
+        from . import broadcast_pitch
+        try:
+            cum_broadcast, _ = camera.turf_motion(images, boxes, cumulative, smooth_grass=True)
+            seeds = broadcast_pitch.solve(images, cum_broadcast, meta, boxes, indices, log=log)
+            if seeds:
+                is_broadcast = True
+                cumulative = cum_broadcast
+        except (ValueError, np.linalg.LinAlgError) as error:
+            log(f'중계 카메라 분석 실패: {error}')
+            seeds = {}
+
+    if not seeds:
+        return fail('시작 카메라 없음: 일치하는 경기장 선을 찾지 못함')
+
+    if is_broadcast:
+        matrices = np.zeros((len(images), 3, 3))
+        keys = sorted(seeds)
+        for k in indices:
+            j = np.searchsorted(keys, k)
+            if j == 0:
+                H = pitch.chain(cumulative, keys[0], k, seeds[keys[0]])
+            elif j >= len(keys):
+                H = pitch.chain(cumulative, keys[-1], k, seeds[keys[-1]])
+            else:
+                a, b = keys[j-1], keys[j]
+                t = (k - a) / (b - a)
+                Ha = pitch.chain(cumulative, a, k, seeds[a])
+                Hb = pitch.chain(cumulative, b, k, seeds[b])
+                H = pitch.blend(Ha, Hb, t)
+            matrices[k] = H / H[2, 2]
+
+        valid = np.ones(len(images), bool)
+
+        res = {'bases': [(k, seeds[k], 0, 1.0) for k in keys],
+               'mode': 'camera', 'meta': meta, 'valid': valid,
+               'segments': segments, 'matrix': matrices,
+               'paint_score': np.ones(len(images)), 'score': 1.0,
+               'carried': np.zeros(len(images), bool), 'long_lens': True}
+
+        calib_obj = pitch.Calib(res, cumulative)
+        try:
+            fitted = hybrid_calib.refine_long_lens(calib_obj, images, cumulative, meta, boxes)
+        except Exception as error:
+            log(f'중계 카메라 정밀 보정 실패: {error}')
+            fitted = None
+
+        if fitted is not None:
+            for k in np.flatnonzero(valid):
+                try:
+                    matrices[k] = fitted.img_from_pitch(k)
+                except Exception:
+                    valid[k] = False
+            focal = float(fitted.focal if hasattr(fitted, 'focal') and fitted.focal else 5000.)
+        else:
+            focal = 5000.
+
+        on_pitch_share = fixed_pitch.player_on_pitch(matrices, boxes, meta, margin=8.0)
+        log(f'선수 경기장 내 비율: {on_pitch_share:.1%}')
+        if on_pitch_share < 0.60:
+            valid[:] = False
+            return Result(None, valid, {}, {}, {}, f'선수가 경기장 밖에 놓여요 ({on_pitch_share:.0%})')
+
+        ref = min(keys)
+        from . import camfit
+        focal_val, _, pivot = camfit.decompose(matrices[ref])
+        c = fixed_pitch.Calibration(meta, ref, pivot, lens_offset_m, focal_val, matrices, segments == segments[ref])
+        return Result(c, valid, {}, {}, {}, None if valid.any() else '중계 카메라 검증 실패')
 
     lines = pitch.model_lines(meta)
     start, end = map(int, indices[[0, -1]])

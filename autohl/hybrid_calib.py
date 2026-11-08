@@ -16,12 +16,18 @@ from scipy.optimize import least_squares
 from scipy.spatial import cKDTree
 
 from . import camfit, field_solver as fs, pitch
-from .camera import warp
+from .camera import distort, pinhole_motion, undistort, warp
 
 MAX_RMS_PX = 15.         # a fit worse than this has failed
 BAD_LINE_PX = 12.        # a named line further off than this is treated as misnamed
 CHAIN_WEIGHT = .3        # px of residual per milliradian of disagreement with the camera chain
 MIN_LINES = 4
+MAX_DROPPED = .3         # share of named lines a fit may discard before it counts as failed
+MAX_K1 = .5              # a stronger lens term means the fit is using it to bend something else
+LONG_LENS = 3000.        # px; past this a lens term cannot be told from the camera's own pose
+ZOOM_DRIFT = .02         # share of focal length a clip must change by to count as zooming
+FAR_TOUCHLINE = 2        # index in pitch.model_segments
+CURVES = (17, 18, 19)    # centre circle and penalty arcs
 
 
 class Calibration:
@@ -57,26 +63,6 @@ class Calibration:
     def to_pitch(self, frame, points):
         return warp(undistort(np.asarray(points, float), self.k1, self._focal(frame)),
                     np.linalg.inv(self.img_from_pitch(frame)))
-
-
-def distort(p, k1, focal):
-    if not k1:
-        return p
-    x = (p-fs.CENTRE)/focal
-    return fs.CENTRE+x*(1+k1*(x*x).sum(1, keepdims=True))*focal
-
-
-def undistort(p, k1, focal):
-    if not k1:
-        return p
-    d = (p-fs.CENTRE)/focal
-    radius = np.linalg.norm(d, axis=1)
-    x = radius.copy()
-    # Newton on x(1+k1 x^2)=r: a plain fixed-point loop diverges toward the frame corners.
-    for _ in range(8):
-        x = x-(x*(1+k1*x*x)-radius)/np.maximum(1+3*k1*x*x, .2)
-    scale = np.where(radius > 1e-9, x/np.maximum(radius, 1e-9), 1.)
-    return fs.CENTRE+d*scale[:, None]*focal
 
 
 def _features(meta):
@@ -256,9 +242,51 @@ def _start(observations, cumulative, meta, features):
                     p, error = _aimed(np.array([x, y, h]), focal, observations[busiest], meta, features)
                     if error < best[0]:
                         best = error, p
-    if best[1] is None:
+    if best[1] is not None and best[0] < BAD_LINE_PX:
+        return best[1][4:7], float(np.exp(best[1][3])), {busiest: best[1]}
+    return _long_lens_start(observations, cumulative, meta, features, busiest)
+
+
+def _settled(start, keys, busiest, observations, cumulative, features):
+    """Every key aimed from one camera position and focal length, outward from the busiest key."""
+    focal = float(np.exp(start[3]))
+    cameras = {busiest: start}
+    for k in sorted(keys, key=lambda j: abs(j-busiest)):
+        if k in cameras:
+            continue
+        near = min(cameras, key=lambda j: abs(j-k))
+        R = _chain_rotation(cumulative, near, k, focal) @ fs._rotation(*cameras[near][:3])
+        p = np.r_[fs._parameters(R, np.zeros(3), focal)[:3], start[3:]]
+        for _ in range(2):
+            points, world, weight, _ = _tie(fs._homography(p), observations[k], features)
+            if len(points) >= 6:
+                p[:3] = least_squares(lambda v: weight*_distance(fs._homography(np.r_[v, p[3:]]), points, world),
+                                      p[:3], loss='soft_l1', f_scale=15., x_scale=.01, max_nfev=30).x
+        cameras[k] = p
+    return cameras
+
+
+def _long_lens_start(observations, cumulative, meta, features, busiest):
+    # A broadcast camera sits far back and high with a long lens. One frame cannot tell its
+    # distance from its focal length, so candidates are judged on every key.
+    half = meta['width']/2
+    tried = []
+    for x in np.linspace(0, meta['length'], 6):
+        for y in (half+10, half+25, half+40):
+            for h in (10., 15., 25.):
+                for focal in (3000., 4500., 6500.):
+                    p, error = _aimed(np.array([x, y, h]), focal, observations[busiest], meta, features)
+                    if p is not None:
+                        tried.append((error, p))
+    if not tried:
         return None
-    return best[1][4:7], float(np.exp(best[1][3])), {busiest: best[1]}
+    best = None
+    for _, p in sorted(tried, key=lambda t: t[0])[:4]:
+        cameras = _settled(p, sorted(observations), busiest, observations, cumulative, features)
+        error = np.median([_key_error(fs._homography(cameras[k]), observations[k], features) or 1e9 for k in cameras])
+        if best is None or error < best[0]:
+            best = error, cameras, p
+    return best[2][4:7], float(np.exp(best[2][3])), best[1]
 
 
 def _spread(solved, keys, cumulative, focal):
@@ -300,8 +328,12 @@ def _result(keys, cameras, cumulative, meta, k1, rms, notes):
                        cameras=cameras, rms=rms, notes=notes, focal=focal)
 
 
-def fit_shared(observations, cumulative, meta, temporal=True, distortion=True, free_position=False):
-    """One camera position and lens per clip, a rotation per key frame."""
+def fit_shared(observations, cumulative, meta, temporal=True, distortion=True, free_position=False, zoom=False):
+    """One camera position and lens per clip, a rotation per key frame.
+
+    With zoom, the focal length may drift from key to key. A broadcast camera zooms while it pans,
+    and a single focal length then turns that zoom into false ground distance.
+    """
     features = _features(meta)
     start = _start(observations, cumulative, meta, features)
     if start is None:
@@ -309,11 +341,31 @@ def fit_shared(observations, cumulative, meta, temporal=True, distortion=True, f
     position, focal, solved = start
     keys = sorted(observations)
     angles = _spread(solved, keys, cumulative, focal)
+    first = {k: np.r_[angles[k], np.log(focal), position] for k in keys}
+    start_error = np.median([_key_error(fs._homography(first[k]), observations[k], features) or 1e9 for k in keys])
+    rough = focal >= LONG_LENS and start_error >= BAD_LINE_PX
+    if rough:
+        # On a long lens a small change of position moves every line far, so angles solved for
+        # each key's own position do not suit the shared one. Start them from the shared camera,
+        # or the robust fit reads every line as an outlier.
+        busiest = max(keys, key=lambda k: sum(len(l['points']) for l in observations[k]))
+        settled = _settled(first[busiest], keys, busiest, observations, cumulative, features)
+        angles = {k: settled[k][:3] for k in keys}
+    distortion = distortion and focal < LONG_LENS
     k1, dropped = 0., 0
     n = len(keys)
     x = np.r_[position, np.log(focal), k1, np.concatenate([angles[k] for k in keys])]
     if free_position:
         x = np.r_[x, np.tile(position, n)]
+    drift_at = len(x)
+    if zoom:
+        distortion = False
+        x = np.r_[x, np.zeros(n)]
+    lower, upper = np.full(len(x), -np.inf), np.full(len(x), np.inf)
+    lower[3], upper[3] = x[3]-.7, x[3]+.7
+    lower[4], upper[4] = -MAX_K1, MAX_K1
+    if zoom:
+        lower[drift_at:], upper[drift_at:] = -.25, .25
     links = [(a, b) for a, b in zip(keys, keys[1:])]
 
     def unpack(v):
@@ -321,7 +373,8 @@ def fit_shared(observations, cumulative, meta, temporal=True, distortion=True, f
         cameras = {}
         for i, k in enumerate(keys):
             where = v[5+3*n+3*i:5+3*n+3*i+3] if free_position else v[:3]
-            cameras[k] = np.r_[v[5+3*i:8+3*i], focal_, where]
+            drift = v[drift_at+i] if zoom else 0.
+            cameras[k] = np.r_[v[5+3*i:8+3*i], focal_+drift, where]
         return cameras, shift
 
     active = observations
@@ -348,6 +401,9 @@ def fit_shared(observations, cumulative, meta, temporal=True, distortion=True, f
                 out.append(.2*(v[5+3*n+3:]-v[5+3*n:-3]))
             if distortion:
                 out.append(np.array([3*v[4]]))
+            if zoom:
+                out.append(40*v[drift_at:])
+                out.append(300*np.diff(v[drift_at:]))
             return np.concatenate(out) if out else np.zeros(1)
 
         free = np.ones(len(x), bool)
@@ -356,17 +412,20 @@ def fit_shared(observations, cumulative, meta, temporal=True, distortion=True, f
             v = x.copy()
             v[free] = u
             return residual(v)
-        scale = np.r_[[.5, .5, .2, .03, .05], np.full(3*n, .01), np.full(3*n if free_position else 0, .5)]
-        x[free] = least_squares(only, x[free], loss='soft_l1', f_scale=3., x_scale=scale[free], max_nfev=30).x
-        if limit < 3:
+        scale = np.r_[[.5, .5, .2, .03, .05], np.full(3*n, .01), np.full(3*n if free_position else 0, .5),
+                      np.full(n if zoom else 0, .01)]
+        x[free] = least_squares(only, x[free], bounds=(lower[free], upper[free]), loss='soft_l1',
+                                f_scale=(20., 8., 3., 3.)[limit] if rough else 3., x_scale=scale[free], max_nfev=30).x
+        if limit < 3 and (limit or not rough):
             cameras, k1 = unpack(x)
             active, count = _clean(observations, cameras, features, k1, float(np.exp(x[3])))
             dropped = count
     cameras, k1 = unpack(x)
     focal = float(np.exp(x[3]))
     errors = [e for e in (_key_error(fs._homography(cameras[k]), active[k], features, k1, focal) for k in keys) if e is not None]
-    if not errors or np.median(errors) > MAX_RMS_PX or x[2] <= 0:
-        return None
+    named = sum(len(lines) for lines in observations.values())
+    if not errors or np.median(errors) > MAX_RMS_PX or x[2] <= 0 or dropped > MAX_DROPPED*named:
+        return None  # a fit that had to discard this much paint explains the clip by ignoring it
     return _result(keys, cameras, cumulative, meta, k1, float(np.median(errors)), f'dropped={dropped}')
 
 
@@ -419,10 +478,11 @@ def anchored(calibration, observations, min_lines=4):
     """Drop keys too thin to trust, so the lines ease between solid keys instead of wandering.
 
     Keys with few lines disagree by far more than the camera moved. Between the remaining keys
-    the small difference is spread over the whole stretch. A moving camera keeps every key:
-    there the difference is real.
+    the small difference is spread over the whole stretch. A moving or zooming camera keeps every
+    key: there the difference is real.
     """
-    if calibration is None or 'model=moving' in calibration.notes or 'model=homography' in calibration.notes:
+    kept = ('model=moving', 'model=homography', 'model=zoom')
+    if calibration is None or any(model in calibration.notes for model in kept):
         return calibration
     keys = [int(k) for k in calibration.keys]
     solid = [k for k in keys if len(observations[k]) >= min_lines]
@@ -430,6 +490,68 @@ def anchored(calibration, observations, min_lines=4):
         solid = [max(keys, key=lambda k: sum(len(l['points']) for l in observations[k]))]
     calibration.keys, calibration.H = np.array(solid), {k: calibration.H[k] for k in solid}
     return calibration
+
+
+def named_paint(c, F, boxes, frames, meta, gate=1.2, far_paint=False):
+    """Name the paint a working calibration can see, as input for fit_shared.
+
+    Curves never form straight strokes, so the centre circle and penalty arcs are named from raw
+    paint pixels. Without them nothing ties the far side of a wide view to the box it was fitted
+    on, and the circle slides as the camera turns.
+    """
+    features = _features(meta)
+    named = {}
+    for k in frames:
+        found = boxes[k] if boxes is not None else np.empty((0, 5))
+        strokes, lawn, loose = fs._strokes(F[k], found, False)
+        lines = []
+        points = fs._sample(strokes, 8)
+        if len(points):
+            ground = np.nan_to_num(c.to_pitch(k, points), nan=1e6)
+            distance = np.stack([f[0].query(ground)[0] for f in features], 1)
+            nearest, close = distance.argmin(1), distance.min(1) < 1.
+            for segment in np.unique(nearest[close]):
+                group = points[close & (nearest == segment)]
+                if len(group) >= 6 and (far_paint or segment != FAR_TOUCHLINE):
+                    lines.append({'segment': int(segment), 'points': group, 'confidence': 1.})
+        y, x = np.nonzero(fs.line_paint(loose, lawn, shortest=16., widest=14. if far_paint else 5.))
+        paint = np.c_[x, y]*2.
+        if len(paint):
+            paint = paint[::max(1, len(paint)//4000)]
+            ground = np.nan_to_num(c.to_pitch(k, paint), nan=1e6)
+            for segment in CURVES:
+                near = paint[features[segment][0].query(ground)[0] < gate]
+                if len(near) >= 25:
+                    lines.append({'segment': segment, 'points': near[::max(1, len(near)//120)], 'confidence': .7})
+        edge = fs._far_edge(F[k], found)
+        if len(edge):
+            lines.append({'segment': FAR_TOUCHLINE, 'points': fs._sample(edge, 16), 'confidence': 1.})
+        named[k] = lines
+    return named
+
+
+def refine_camera(c, F, cumulative, meta, boxes, rounds=2, step=15):
+    """One camera and lens for the clip, from paint named by a working calibration, or None."""
+    frames = [k for k in range(0, len(F), step) if c.supports(k)]
+    fitted, position = c, None
+    for _ in range(rounds):
+        fitted = fit_shared(named_paint(fitted, F, boxes, frames, meta), cumulative, meta)
+        if fitted is None:
+            return None
+    fitted.CUM = pinhole_motion(cumulative, fitted.k1, fitted.focal)
+    return fitted
+
+
+def refine_long_lens(c, F, cumulative, meta, boxes, rounds=2, step=10):
+    """One camera, with zoom if the clip needs it, for footage on a long lens, or None."""
+    frames = [k for k in range(0, len(F), step) if c.supports(k)]
+    fitted = c
+    for _ in range(rounds):
+        # From a gantry the far touchline is plain paint, with no track edge to find it by.
+        fitted = calibrate(named_paint(fitted, F, boxes, frames, meta, far_paint=True), cumulative, meta)
+        if fitted is None:
+            return None
+    return fitted
 
 
 def calibrate(observations, cumulative, meta):
@@ -441,7 +563,11 @@ def _choose(observations, cumulative, meta):
     shared = fit_shared(observations, cumulative, meta)
     free = fit_homographies(observations, cumulative, meta)
     if shared is None:
-        return free
+        zoomed = fit_shared(observations, cumulative, meta, zoom=True)
+        if zoomed is None:
+            return free
+        zoomed.notes += ' model=zoom'
+        return zoomed
     # A free homography per frame cannot be fooled by a camera that moves, so a much better free
     # fit means the one-position model is wrong for this clip.
     if free is not None and shared.rms > 1.5*free.rms+.5:
@@ -451,6 +577,11 @@ def _choose(observations, cumulative, meta):
             return moving
         free.notes += ' model=homography'
         return free
+    zoomed = fit_shared(observations, cumulative, meta, zoom=True)
+    if zoomed is not None and (np.ptp([c[3] for c in zoomed.cameras.values()]) > ZOOM_DRIFT
+                               or zoomed.rms < .85*shared.rms):
+        zoomed.notes += ' model=zoom'
+        return zoomed
     tripod = fit_tripod(observations, cumulative, meta, shared)
     if tripod is not None and tripod.rms <= 1.1*shared.rms+.1:
         tripod.notes += ' model=tripod'
