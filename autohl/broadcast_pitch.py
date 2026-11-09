@@ -52,6 +52,19 @@ WIDE_MIN_PAINT_SHARE = .4
 WIDE_MIN_COVER = .5
 WIDE_MIN_PAINTED = .5
 MIN_PEOPLE = 12          # whole people across the sampled frames of a shot
+# Polish. Paint is tied to a line within a metre of it, and at the far end of a wide view a metre
+# is a few pixels, so a line there 20 px off never draws its paint. A stroke is tied by direction
+# instead, from further away, when no other line near it runs the same way. Footage cropped from
+# a larger sensor has its optical centre off the frame centre; a camera pinned to the centre then
+# cannot lay both penalty boxes and the circle at once (Alfheim: 20-25 px off, 23 px box error).
+TIE_REACHES_PX = (40., 20., 10., 6.)
+TIE_TURN = np.radians(4.)
+TIE_SHORTEST_PX = 40.
+TIE_MARGIN = 1.6           # the next line of any similar direction must be this much further off
+MAX_CENTRE_SHIFT_PX = 60.
+CENTRE_PRIOR_PX = 30.      # a shift costs as much as one stroke point this many pixels off, per 30 px
+TIE_ERROR_CAP_PX = 20.
+MIN_TIE_GAIN = .85         # the polish must cut the tied strokes' error by 15% (Alfheim: 27-48%)
 
 
 def _positions(meta):
@@ -284,6 +297,103 @@ def settle(H, points, model):
     return settled if np.median(moved) <= MAX_SETTLE_PX else None
 
 
+def _visible_segment(H, a, b, samples=64):
+    world = np.linspace(a, b, samples)
+    h = np.c_[world, np.ones(samples)] @ H.T
+    ahead = h[:, 2] > 1e-6
+    if ahead.sum() < 2:
+        return None
+    image = h[ahead, :2]/h[ahead, 2:]
+    image = image[(np.abs(image) < 2e4).all(1)]
+    return (image[0], image[-1]) if len(image) >= 2 else None
+
+
+def stroke_ties(p, strokes, meta, reach):
+    """Points along strokes, each with the model line it runs along: (points, lines) in the form of
+    field_solver._associate. A stroke is tied only to a straight line in the same direction within
+    reach pixels, and only when every other line close to it runs at a clearly different angle or
+    lies well further off, so paint is never pulled onto a neighbour."""
+    H = fs._homography(p)
+    model = []
+    for kind, *shape in pitch.model_segments(meta):
+        if kind != 'line':
+            continue
+        a, b = np.asarray(shape[0], float), np.asarray(shape[1], float)
+        tangent = (b-a)/np.linalg.norm(b-a)
+        normal = np.array([-tangent[1], tangent[0]])
+        seen = _visible_segment(H, a, b)
+        if seen is not None and np.linalg.norm(seen[1]-seen[0]) >= 1.:
+            model.append((seen, np.r_[normal, -normal @ a]))
+    points, lines = [], []
+    for stroke in np.asarray(strokes, float):
+        u, v = stroke[:2], stroke[2:]
+        length = np.linalg.norm(v-u)
+        if length < TIE_SHORTEST_PX:
+            continue
+        direction = (v-u)/length
+        near = []
+        for (A, B), line in model:
+            along = (B-A)/np.linalg.norm(B-A)
+            normal = np.array([-along[1], along[0]])
+            ends = np.array([(u-A) @ along, (v-A) @ along])
+            if ends.max() < -reach or ends.min() > np.linalg.norm(B-A)+reach:
+                continue
+            turn = np.arccos(min(1., abs(direction @ along)))
+            near.append((max(abs((u-A) @ normal), abs((v-A) @ normal)), turn, line))
+        same = sorted((n for n in near if n[1] < TIE_TURN), key=lambda n: n[0])
+        if not same or same[0][0] > reach:
+            continue
+        best = same[0]
+        rivals = [n[0] for n in near if n is not best and n[1] < 3*TIE_TURN]
+        if rivals and min(rivals) < TIE_MARGIN*best[0]+6.:
+            continue
+        count = max(2, int(length/8))
+        points.append(u+(v-u)*np.linspace(0, 1, count)[:, None])
+        lines.append(np.tile(best[2], (count, 1)))
+    if not points:
+        return np.empty((0, 2)), np.empty((0, 3))
+    return np.vstack(points), np.vstack(lines)
+
+
+def polish(p, window, points, model, meta):
+    """The camera with strokes tied by direction and the optical centre free to move a little, as
+    nine parameters, or the seven it was given when that does not explain the strokes better."""
+    shift = MAX_CENTRE_SHIFT_PX
+    low = np.array([-10., -1.5, -.2, np.log(MIN_FOCAL), -80., meta['width']/2+3., MIN_CAMERA_M, -shift, -shift])
+    high = np.array([10., 1.5, .2, np.log(MAX_FOCAL), meta['length']+80., meta['width']/2+120., MAX_CAMERA_M, shift, shift])
+    q = np.clip(np.r_[p[:7], 0., 0.], low+1e-6, high-1e-6)
+    # Judged on the strokes tied from where it started, so the polish cannot grade its own ties.
+    # Stroke cover is no judge here: it counts strokes within 5 px of any line, and the stroke of
+    # a wide line can trace one edge, which a camera a few pixels off the paint centre fits better.
+    judged = stroke_ties(q, window['strokes'], meta, TIE_REACHES_PX[0])
+    if len(judged[0]) < 12:
+        return p
+    for reach in TIE_REACHES_PX:
+        tied, tied_lines = stroke_ties(q, window['strokes'], meta, reach)
+        near, lines = fs._associate(q, points, model, 1.)
+        if len(tied) < 12:
+            break
+        both, both_lines = np.vstack((near, tied)), np.vstack((lines, tied_lines))
+        prior = np.sqrt(len(both))/CENTRE_PRIOR_PX
+
+        def residual(v):
+            return np.r_[fs._line_error(v, both, both_lines), prior*v[7:]]
+
+        q = least_squares(residual, q, loss='soft_l1', f_scale=3., max_nfev=40, bounds=(low, high),
+                          x_scale=[.02, .02, .02, .05, .5, .5, .2, 5., 5.]).x
+
+    def tie_error(v):
+        return float(np.mean(np.minimum(np.abs(fs._line_error(v, *judged)), TIE_ERROR_CAP_PX)))
+
+    # People are read about the frame centre; a shift of a few tens of pixels barely moves them.
+    people_before, people_after = fs._people_of(p, window, meta)[0], fs._people_of(q, window, meta)[0]
+    if (tie_error(q) > MIN_TIE_GAIN*tie_error(p) or _explained(q, points, model) < _explained(p, points, model)-.02
+            or abs(people_after) > max(abs(people_before)+.05, MAX_PEOPLE_ERROR*.6)
+            or np.linalg.norm(q[4:7]-p[4:7]) > 5. or abs(q[3]-p[3]) > .2):
+        return p
+    return q
+
+
 def _pinned(p, meta):
     """A fit that ran into the height or focal limit. The best answer lies outside it, so what the
     fit stopped at is only the nearest wall: it can lay a lot of paint on the wrong lines. How far
@@ -360,6 +470,10 @@ def solve(F, path, meta, boxes, frames, log=print):
         log(f'중계 카메라 후보를 믿을 수 없어요: 페인트 일치 {best["share"]:.0%}, 선 {best["painted"]:.0%}, 높이 {p[6]:.1f} m, 최소 {lowest:.1f} m')
         return None
     log(f'중계 카메라 ({p[4]:.1f}, {p[5]:.1f}) 높이 {p[6]:.1f} m, 초점거리 {np.exp(p[3]):.0f} px, 페인트 일치 {best["share"]:.0%}')
+    p = polish(p, window, points, model, meta)
+    if len(p) > 7:
+        log(f'선 방향으로 다듬음: ({p[4]:.1f}, {p[5]:.1f}) 높이 {p[6]:.1f} m, 초점거리 {np.exp(p[3]):.0f} px, '
+            f'광학 중심 {p[7]:+.0f}, {p[8]:+.0f} px')
     H = fs._homography(p)
     return _keys_on_paint(F, path, boxes, frames, base, H, model)
 

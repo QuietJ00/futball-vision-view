@@ -165,9 +165,12 @@ def _rotation(yaw, tilt, roll):
 
 
 def _homography(p):
-    yaw, tilt, roll, log_focal, x, y, height = p
+    # Seven numbers: yaw, tilt, roll, log focal, camera x, y, height. Two more, when given, move
+    # the principal point off the frame centre, as in footage cropped from a larger sensor.
+    yaw, tilt, roll, log_focal, x, y, height = p[:7]
     focal = np.exp(log_focal)
-    K = np.array([[focal, 0, CENTRE[0]], [0, focal, CENTRE[1]], [0, 0, 1.]])
+    cx, cy = CENTRE + (p[7:9] if len(p) >= 9 else 0.)
+    K = np.array([[focal, 0, cx], [0, focal, cy], [0, 0, 1.]])
     R = _rotation(yaw, tilt, roll)
     H = K @ np.c_[R[:, :2], -R @ np.array([x, y, -height])]
     return H / H[2, 2]
