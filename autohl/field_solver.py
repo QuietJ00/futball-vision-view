@@ -23,6 +23,11 @@ from . import pitch
 from .camera import warp
 
 CENTRE = np.array([960., 540.])
+# A camera may carry its optical centre off the frame centre (footage cropped from a larger
+# sensor), within this many pixels and at a weak cost: per CENTRE_PRIOR_PX of shift, as much as
+# one tied point that far off for every point in the fit, before the robust loss.
+MAX_CENTRE_SHIFT_PX = 60.
+CENTRE_PRIOR_PX = 30.
 PERSON_HEIGHT = 1.74
 ALONG_LINES = [1, 2, 5, 7, 8, 10, 11, 13, 14, 16]
 ACROSS_LINES = [0, 3, 4, 6, 9, 12, 15]
@@ -166,9 +171,12 @@ def _rotation(yaw, tilt, roll):
 
 
 def _homography(p):
-    yaw, tilt, roll, log_focal, x, y, height = p
+    # Seven numbers: yaw, tilt, roll, log focal, camera x, y, height. Two more, when given, move
+    # the principal point off the frame centre, as in footage cropped from a larger sensor.
+    yaw, tilt, roll, log_focal, x, y, height = p[:7]
     focal = np.exp(log_focal)
-    K = np.array([[focal, 0, CENTRE[0]], [0, focal, CENTRE[1]], [0, 0, 1.]])
+    cx, cy = CENTRE + (p[7:9] if len(p) >= 9 else 0.)
+    K = np.array([[focal, 0, cx], [0, focal, cy], [0, 0, 1.]])
     R = _rotation(yaw, tilt, roll)
     H = K @ np.c_[R[:, :2], -R @ np.array([x, y, -height])]
     return H / H[2, 2]

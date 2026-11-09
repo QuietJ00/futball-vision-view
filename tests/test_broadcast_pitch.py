@@ -84,6 +84,60 @@ class PinnedTest(unittest.TestCase):
         self.assertFalse(bp._pinned(near, META))
 
 
+ALFHEIM = np.array([.0, .5, 0., np.log(870.), 49.6, 40.3, 9.])   # wide camera, low stand
+
+
+def pitch_segment(index):
+    from autohl import pitch
+    kind, a, b = pitch.model_segments(META)[index]
+    return kind, np.asarray(a, float), np.asarray(b, float)
+
+
+def model_line(index):
+    _, a, b = pitch_segment(index)
+    tangent = (b-a)/np.linalg.norm(b-a)
+    normal = np.array([-tangent[1], tangent[0]])
+    return np.r_[normal, -normal @ a]
+
+
+def stroke_on(H, index, start=.3, end=.7):
+    _, a, b = pitch_segment(index)
+    return camera.warp(np.array([a+(b-a)*start, a+(b-a)*end]), H).ravel()
+
+
+class PolishTest(unittest.TestCase):
+    def test_a_principal_point_shift_moves_the_image_and_nothing_else(self):
+        world = np.array([[52.5, 0.], [88.5, -20.16], [10., 30.]])
+        plain = camera.warp(world, fs._homography(ALFHEIM))
+        shifted = camera.warp(world, fs._homography(np.r_[ALFHEIM, 20., -10.]))
+        np.testing.assert_allclose(shifted-plain, np.tile([20., -10.], (3, 1)), atol=1e-3)
+
+    def test_a_stroke_past_paint_reach_is_tied_to_the_line_it_runs_along(self):
+        # The far penalty box line where a camera with its optical centre 30 px off puts it, seen
+        # through a camera that assumes the centre: too far for paint to be tied by distance.
+        stroke = stroke_on(fs._homography(np.r_[ALFHEIM, 0., 30.]), 12)
+        gap = np.abs(fs._line_error(ALFHEIM, stroke.reshape(2, 2), np.tile(model_line(12), (2, 1))))
+        self.assertGreater(gap.min(), 10.)
+        points, lines = bp.stroke_ties(ALFHEIM, [stroke], META, 40.)
+        self.assertGreater(len(points), 0)
+        for line in lines:
+            self.assertTrue(np.allclose(line, model_line(12)) or np.allclose(line, -model_line(12)))
+
+    def test_a_stroke_across_every_line_is_not_tied(self):
+        _, a, b = pitch_segment(4)
+        middle = (a+b)/2
+        across = camera.warp(np.array([middle-[3., 0.], middle+[3., 0.]]), fs._homography(ALFHEIM)).ravel()
+        points, _ = bp.stroke_ties(ALFHEIM, [across], META, 40.)
+        self.assertEqual(len(points), 0)
+
+    def test_the_camera_is_kept_when_no_stroke_can_be_tied(self):
+        model = fs._model_tree(META)
+        model['meta'] = META
+        window = {'strokes': np.empty((0, 4)), 'feet': np.empty((0, 2)), 'seen': np.empty((0, 2))}
+        kept = bp.polish(ALFHEIM, window, np.empty((0, 2)), model, META)
+        np.testing.assert_array_equal(kept, ALFHEIM)
+
+
 class ShotCutTest(unittest.TestCase):
     def test_a_cut_is_found_and_a_pan_is_not(self):
         green = np.zeros((20, 90, 160, 3), np.uint8)

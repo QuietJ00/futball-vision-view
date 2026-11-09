@@ -494,6 +494,12 @@ def turf_slip(matrices, valid, cumulative, k1=0., focal=1.):
 def _with_one_camera(result, F, cumulative, meta, boxes, log):
     # Replace frame-by-frame matrices with one camera and lens. Keep the first answer if the fit
     # fails: it is coarser at the far side of the frame, but it is checked and usable.
+    if result.get('centre_shifted'):
+        # The camera is already one camera, solved with its optical centre off the frame centre.
+        # The refit pins the centre, cannot hold it, and falls back to free matrices per frame
+        # that slip over the turf (Alfheim: grass slip 1.6 -> 15 px, box line 5.5 -> 7.3 px).
+        log('광학 중심이 프레임 중앙에서 벗어난 카메라라 정밀 보정을 건너뛰었어요.')
+        return result
     carried = result.get('carried', np.zeros(len(F), dtype=bool))
     painted = result['valid'] & ~carried
     refine = hybrid_calib.refine_long_lens if result.get('long_lens') else hybrid_calib.refine_camera
@@ -621,11 +627,12 @@ def _from_long_lens(F, cumulative, meta, boxes, inliers, log):
     """Keys for high tele footage, on the ground path, as its feature path is rarely usable.
 
     A solve holds only as far as the path does, so what it leaves is solved on its own, as a
-    separate stretch that shares no keys with the last.
+    separate stretch that shares no keys with the last. The last value says whether every stretch
+    was solved with the optical centre off the frame centre.
     """
     path, followed = turf_motion(F, boxes, cumulative, smooth_grass=True)
     segments = np.zeros(len(F), dtype=int)
-    anchors = {}
+    anchors, shifted = {}, []
     waiting = np.split(np.arange(len(F)), shot_cuts(F))
     for number, shot in enumerate(waiting):
         segments[shot] = number
@@ -644,12 +651,13 @@ def _from_long_lens(F, cumulative, meta, boxes, inliers, log):
             continue
         first, last = min(keys), max(keys)
         anchors.update(keys)
+        shifted.append(bool(getattr(keys, 'centre_shifted', False)))
         segments[frames[frames >= first]] = segments.max()+1
         for rest in (frames[frames < first], frames[frames > last]):
             if len(rest):
                 waiting.append(rest)
                 segments[rest] = segments.max()+1
-    return anchors, path, segments, followed
+    return anchors, path, segments, followed, bool(shifted) and all(shifted)
 
 
 def solver_enabled():
@@ -670,7 +678,7 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
             raise ValueError('영상 안의 프레임을 선택해 주세요.')
         anchors[k] = _fit_points(meta, k, points)
     mode = 'manual' if anchors else 'geometry'
-    followed, long_lens, solved = None, False, None
+    followed, long_lens, solved, centre_shifted = None, False, None, False
     if not anchors and solver_enabled():
         for segment in np.unique(segments):
             frames = np.flatnonzero(segments == segment)
@@ -681,7 +689,8 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
                     # Search on a view it cannot model (a ground plane seen edge-on) is a refusal.
                     log(f'카메라를 풀지 못했어요: {error}')
         if not anchors and boxes is not None:
-            anchors, cumulative, segments, followed = _from_long_lens(F, cumulative, meta, boxes, inliers, log)
+            anchors, cumulative, segments, followed, centre_shifted = _from_long_lens(F, cumulative, meta, boxes,
+                                                                                      inliers, log)
             long_lens = bool(anchors)
         mode = 'camera' if anchors else mode
         if anchors and boxes is not None and followed is None:
@@ -716,4 +725,5 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
     result = _project_map(F, cumulative, meta, segments, anchors, sky, mode, log, followed)
     if result:
         result['long_lens'] = long_lens
+        result['centre_shifted'] = centre_shifted
     return _with_one_camera(result, F, cumulative, meta, boxes, log) if mode == 'camera' and result else result
