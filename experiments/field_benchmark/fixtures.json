@@ -1,0 +1,94 @@
+{
+  "engines": {
+    "pivotanchor": "6a8ab063941ccd36aae43904e05facabbbb900f6",
+    "turflens": "efd13870326c2527b2a53541d77282f5215c0cea"
+  },
+  "policy": {
+    "elevated_frame_coverage": 0.90,
+    "elevated_good_labelled_share": 0.80,
+    "line_p95_px": 20,
+    "speed_sample_coverage": 0.80,
+    "speed_mae_kmh": 3.0
+  },
+  "clips": [
+    {
+      "id": "anzhi_c1",
+      "venue": "alfheim",
+      "match": "2013-11-07 Tromsø IL vs Anzhi",
+      "class": "elevated_fixed",
+      "sources": ["0176_2013-11-07 21:05:50.587623000.h264", "0177_2013-11-07 21:05:53.588407000.h264"],
+      "segment_seconds": 3,
+      "duration": 6,
+      "pitch": {"length": 105, "width": 68},
+      "dimensions": "published",
+      "sensor": "anzhi_zxy.csv"
+    },
+    {
+      "id": "stromsgodset_c1",
+      "venue": "alfheim",
+      "match": "2013-11-03 Tromsø IL vs Strømsgodset",
+      "class": "elevated_fixed",
+      "sources": ["0070_2013-11-03 18:01:56.260957000.h264", "0071_2013-11-03 18:01:59.261818000.h264"],
+      "segment_seconds": 3,
+      "duration": 6,
+      "pitch": {"length": 105, "width": 68},
+      "dimensions": "published",
+      "sensor": "stromsgodset_zxy.csv"
+    },
+    {
+      "id": "charrua_pan",
+      "venue": "estadio_charrua",
+      "match": "2018 U-17 WWC New Zealand vs Canada",
+      "class": "near_sideline_pan_stress",
+      "sources": ["u17.webm"],
+      "start": 4,
+      "duration": 6,
+      "pitch": {"length": 100, "width": 70},
+      "dimensions": "unverified template"
+    },
+    {
+      "id": "zenit_pan",
+      "venue": "gazprom_arena",
+      "match": "2021-12-08 Zenit vs Chelsea",
+      "class": "near_sideline_pan_zoom_stress",
+      "sources": ["zenit.webm"],
+      "start": 15,
+      "duration": 6,
+      "pitch": {"length": 105, "width": 68},
+      "dimensions": "published"
+    },
+    {
+      "id": "dfl_2e57b9",
+      "venue": "dfl_stadium_a",
+      "match": "DFL Scouting Feed 2e57b9_0",
+      "class": "elevated_pan_zoom",
+      "sources": ["dfl_2e57b9.mp4"],
+      "start": 8,
+      "duration": 6,
+      "pitch": {"length": 105, "width": 68},
+      "dimensions": "unverified template"
+    },
+    {
+      "id": "dfl_08fd33",
+      "venue": "dfl_stadium_b",
+      "match": "DFL Scouting Feed 08fd33_0",
+      "class": "elevated_pan_zoom",
+      "sources": ["dfl_08fd33.mp4"],
+      "start": 13,
+      "duration": 6,
+      "pitch": {"length": 105, "width": 68},
+      "dimensions": "unverified template"
+    },
+    {
+      "id": "unmarked_overhead",
+      "venue": "unidentified_amateur",
+      "match": "Amateurfußball Torschuss von oben",
+      "class": "negative_unmarked",
+      "sources": ["amateur.webm"],
+      "start": 8,
+      "duration": 4,
+      "pitch": {"length": 105, "width": 68},
+      "dimensions": "hypothetical template for refusal control"
+    }
+  ]
+}

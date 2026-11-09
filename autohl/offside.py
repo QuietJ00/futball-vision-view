@@ -28,6 +28,8 @@ def height_model(D):
 
 def analyse(C,dets,kf,clicks,meta):
  # clicks: {'att':(x,y), 'def':(x,y), 'pas':(x,y) optional}, all at the kick frame kf.
+ if hasattr(C,'supports') and not C.supports(kf):
+  raise ValueError('패스 순간의 경기장 좌표를 확인할 수 없어요.')
  D=dets[kf];out={'kick':int(kf)}
  for r in ('att','def','pas'):
   if clicks.get(r) is None:continue

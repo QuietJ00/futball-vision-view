@@ -1,0 +1,24 @@
+{
+ "models": [
+  "TRUTH",
+  "A",
+  "B",
+  "C",
+  "D0",
+  "D",
+  "E",
+  "AUTO"
+ ],
+ "first_seed": 42,
+ "repeats": 5,
+ "code": "9ddf345",
+ "python": "3.12.14",
+ "numpy": "2.5.4",
+ "opencv": "5.0.0",
+ "machine": "arm64",
+ "cpus": 12,
+ "time": "2026-11-05 00:59:04",
+ "scenes": 61,
+ "runs": 2440,
+ "wall_seconds": 347.2517111301422
+}
