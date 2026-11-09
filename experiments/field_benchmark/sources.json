@@ -1,0 +1,57 @@
+{
+  "u17.webm": {
+    "url": "https://upload.wikimedia.org/wikipedia/commons/5/5e/2018_FIFA_U-17_Women%27s_World_Cup_-_New_Zealand_vs_Canada_-_27.webm",
+    "bytes": 29944687,
+    "sha256": "9ae5e802a2b43014309d2239d0d4c05326164608c98fc6dcef6196302cbceb6d"
+  },
+  "amateur.webm": {
+    "url": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Amateurfu%C3%9Fball_Torschuss_von_oben.webm",
+    "bytes": 24894974,
+    "sha256": "42e9d2a0468a7fc08622eccabea2bd640324f9550d1909f99ead0e49a1bfeac0"
+  },
+  "zenit.webm": {
+    "url": "https://upload.wikimedia.org/wikipedia/commons/a/ac/2021-12-08_-_FC_Zenit_Saint_Petersburg_v_Chelsea_F.C._-_Ozdoev_goal.webm",
+    "bytes": 48808784,
+    "sha256": "2bbee5f57386eb02fa4f208ae3c45b603d3c7646610869c2c10333898f8e4547"
+  },
+  "dfl_2e57b9.mp4": {
+    "url": "https://drive.usercontent.google.com/download?id=19PGw55V8aA6GZu5-Aac5_9mCy3fNxmEf&export=download&confirm=t",
+    "bytes": 21096528,
+    "sha256": "7788719b32b944e42d8f1024fb4802f681bc2053d6301218a5bff6705b549f96"
+  },
+  "dfl_08fd33.mp4": {
+    "url": "https://drive.usercontent.google.com/download?id=1OG8K6wqUw9t7lp9ms1M48DxRhwTYciK-&export=download&confirm=t",
+    "bytes": 19870854,
+    "sha256": "07886454cec2e859edb69b1bef5a3013fed54b887d9b8c5d563619bb511c1766"
+  },
+  "anzhi_zxy.csv": {
+    "url": "https://datasets.simula.no/downloads/alfheim/2013-11-07/zxy/2013-11-07_tromso_anji_first.csv",
+    "bytes": 16743955,
+    "sha256": "77189c442e7895e2e72282a3cfbb802e6c2bc6312ebcc9177ae134aff1e29e01"
+  },
+  "stromsgodset_zxy.csv": {
+    "url": "https://datasets.simula.no/downloads/alfheim/2013-11-03/zxy/2013-11-03_tromso_stromsgodset_first.csv",
+    "bytes": 12903955,
+    "sha256": "69dc7c3ecdae9af9e2e28d3ef926ef72b006750f0bd39a91fa16d1d3fc8d6685"
+  },
+  "0176_2013-11-07 21:05:50.587623000.h264": {
+    "url": "https://datasets.simula.no/downloads/alfheim/2013-11-07/First%20Half/1/0176_2013-11-07%2021:05:50.587623000.h264",
+    "bytes": 1375969,
+    "sha256": "ee0802bbcd56808894d79b1d905478eb4f413a0504432907242e06d6fbe7ac9f"
+  },
+  "0177_2013-11-07 21:05:53.588407000.h264": {
+    "url": "https://datasets.simula.no/downloads/alfheim/2013-11-07/First%20Half/1/0177_2013-11-07%2021:05:53.588407000.h264",
+    "bytes": 1502645,
+    "sha256": "582ace2168cdc444404d4033753a90024ffc28e16b398f916b05ce65ee2aba47"
+  },
+  "0070_2013-11-03 18:01:56.260957000.h264": {
+    "url": "https://datasets.simula.no/downloads/alfheim/2013-11-03/First%20Half/1/0070_2013-11-03%2018:01:56.260957000.h264",
+    "bytes": 1481008,
+    "sha256": "344391038374ab935849245682a146804457d2bbbe7b076bd2e89e3cdc299b36"
+  },
+  "0071_2013-11-03 18:01:59.261818000.h264": {
+    "url": "https://datasets.simula.no/downloads/alfheim/2013-11-03/First%20Half/1/0071_2013-11-03%2018:01:59.261818000.h264",
+    "bytes": 1686675,
+    "sha256": "cb8dc774c1933ecaa25943c7877f75cf1116bc31ab2130dffcba4cfdf21c4ce1"
+  }
+}
