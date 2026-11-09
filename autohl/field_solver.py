@@ -23,6 +23,11 @@ from . import pitch
 from .camera import warp
 
 CENTRE = np.array([960., 540.])
+# A camera may carry its optical centre off the frame centre (footage cropped from a larger
+# sensor), within this many pixels and at a weak cost: per CENTRE_PRIOR_PX of shift, as much as
+# one tied point that far off for every point in the fit, before the robust loss.
+MAX_CENTRE_SHIFT_PX = 60.
+CENTRE_PRIOR_PX = 30.
 PERSON_HEIGHT = 1.74
 ALONG_LINES = [1, 2, 5, 7, 8, 10, 11, 13, 14, 16]
 ACROSS_LINES = [0, 3, 4, 6, 9, 12, 15]

@@ -61,8 +61,6 @@ TIE_REACHES_PX = (40., 20., 10., 6.)
 TIE_TURN = np.radians(4.)
 TIE_SHORTEST_PX = 40.
 TIE_MARGIN = 1.6           # the next line of any similar direction must be this much further off
-MAX_CENTRE_SHIFT_PX = 60.
-CENTRE_PRIOR_PX = 30.      # a shift costs as much as one stroke point this many pixels off, per 30 px
 TIE_ERROR_CAP_PX = 20.
 MIN_TIE_GAIN = .85         # the polish must cut the tied strokes' error by 15% (Alfheim: 27-48%)
 
@@ -358,7 +356,7 @@ def stroke_ties(p, strokes, meta, reach):
 def polish(p, window, points, model, meta):
     """The camera with strokes tied by direction and the optical centre free to move a little, as
     nine parameters, or the seven it was given when that does not explain the strokes better."""
-    shift = MAX_CENTRE_SHIFT_PX
+    shift = fs.MAX_CENTRE_SHIFT_PX
     low = np.array([-10., -1.5, -.2, np.log(MIN_FOCAL), -80., meta['width']/2+3., MIN_CAMERA_M, -shift, -shift])
     high = np.array([10., 1.5, .2, np.log(MAX_FOCAL), meta['length']+80., meta['width']/2+120., MAX_CAMERA_M, shift, shift])
     q = np.clip(np.r_[p[:7], 0., 0.], low+1e-6, high-1e-6)
@@ -374,7 +372,7 @@ def polish(p, window, points, model, meta):
         if len(tied) < 12:
             break
         both, both_lines = np.vstack((near, tied)), np.vstack((lines, tied_lines))
-        prior = np.sqrt(len(both))/CENTRE_PRIOR_PX
+        prior = np.sqrt(len(both))/fs.CENTRE_PRIOR_PX
 
         def residual(v):
             return np.r_[fs._line_error(v, both, both_lines), prior*v[7:]]
@@ -475,7 +473,15 @@ def solve(F, path, meta, boxes, frames, log=print):
         log(f'선 방향으로 다듬음: ({p[4]:.1f}, {p[5]:.1f}) 높이 {p[6]:.1f} m, 초점거리 {np.exp(p[3]):.0f} px, '
             f'광학 중심 {p[7]:+.0f}, {p[8]:+.0f} px')
     H = fs._homography(p)
-    return _keys_on_paint(F, path, boxes, frames, base, H, model)
+    keys = Keys(_keys_on_paint(F, path, boxes, frames, base, H, model))
+    keys.centre_shifted = len(p) > 7
+    return keys
+
+
+class Keys(dict):
+    """Pitch-to-image matrices by frame, from one camera. centre_shifted: its optical centre sits
+    off the frame centre, so a refit that pins the centre cannot hold this camera."""
+    centre_shifted = False
 
 
 def _keys_on_paint(F, path, boxes, frames, base, H, model):

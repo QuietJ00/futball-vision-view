@@ -48,3 +48,20 @@ class FieldGeometryTest(unittest.TestCase):
         cal = field_geometry.calibrate([im, im], np.stack((np.eye(3), np.eye(3))),
                                        self.meta, 0, log=lambda *_: None)
         self.assertIsNone(cal)
+
+
+class CentreShiftedTest(unittest.TestCase):
+    def test_a_camera_with_its_centre_shifted_is_not_refit(self):
+        result = {'valid': np.ones(3, bool), 'centre_shifted': True, 'long_lens': True}
+        original = field_geometry.hybrid_calib.refine_long_lens
+
+        def refit(*args, **kwargs):
+            raise AssertionError('refit called')
+
+        field_geometry.hybrid_calib.refine_long_lens = refit
+        try:
+            kept = field_geometry._with_one_camera(result, np.zeros((3, 4, 4, 3)), np.tile(np.eye(3), (3, 1, 1)),
+                                                   {'length': 105, 'width': 68}, [], log=lambda *_: None)
+        finally:
+            field_geometry.hybrid_calib.refine_long_lens = original
+        self.assertIs(kept, result)
