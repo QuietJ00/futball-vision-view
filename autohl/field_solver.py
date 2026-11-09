@@ -81,7 +81,8 @@ def _strokes(image, boxes, yellow):
     lawn = _lawn(small)
     top = cv2.morphologyEx(grey, cv2.MORPH_TOPHAT, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
     if not yellow:
-        top[(hsv[..., 0] > 13) & (hsv[..., 0] < 40) & (hsv[..., 1] > 80)] = 0
+        yel = (hsv[..., 0] > 14) & (hsv[..., 0] < 35) & (hsv[..., 1] > 65)
+        top[cv2.dilate(np.uint8(yel)*255, np.ones((3, 3), np.uint8)) > 0] = 0
     top[~lawn] = 0
     for x1, y1, x2, y2, *_ in boxes:
         a, b, c, d = np.rint(np.array([x1, y1, x2, y2])/2).astype(int)
@@ -591,7 +592,8 @@ def _vote(results, meta):
         weight = np.array([s for _, s in best.values()])
         group['best'] = best
         group['votes'] = float(weight.sum())
-        group['position'] = (np.array([p[4:7] for p, _ in best.values()])*weight[:, None]).sum(0)/weight.sum()
+        pts_arr = np.array([p[4:7] for p, _ in best.values()])
+        group['position'] = (pts_arr*weight[:, None]).sum(0)/weight.sum() if weight.sum() > 0 else pts_arr.mean(0)
     return sorted(groups, key=lambda g: -g['votes'])
 
 

@@ -85,7 +85,7 @@ class SprintMeasurementTest(unittest.TestCase):
         rng = np.random.default_rng(8)
         texture = rng.integers(0, 255, (540, 960), dtype=np.uint8)
         texture = cv2.GaussianBlur(texture, (5, 5), 0)
-        frame = cv2.cvtColor(texture, cv2.COLOR_GRAY2BGR)
+        frame = cv2.cvtColor(texture, (cv2.COLOR_GRAY2BGR))
         transform = np.float32([[1., .004, 1.5], [0., 1., 3.]])
         moved = cv2.warpAffine(frame, transform, (960, 540))
         matches = camera.refine_ground_motion(

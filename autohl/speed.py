@@ -129,7 +129,7 @@ def player_speed(C, foot, observed, first, last, fps=FPS, pixels=3., hold=3):
     xy, covariance, seen = np.full((count, 2), np.nan), np.full((count, 2, 2), np.nan), np.zeros(count, bool)
     known = np.zeros(count, bool)
     for k in range(first, last+1):
-        known[k] = C.supports(k)
+        known[k] = C.supports(k) if hasattr(C, 'supports') else bool(C.same_segment[k])
         if known[k] and np.isfinite(foot[k]).all():
             xy[k] = C.to_pitch(k, foot[k:k+1])[0]
             covariance[k] = foot_covariance(C, k, foot[k], pixels)

@@ -29,6 +29,8 @@
 | TurfLens | `turflens/pitch-model` | 잔디 움직임(Turf)으로 카메라 경로를 따라가고, 줌과 렌즈 왜곡(Lens)을 보정해요. 한 대의 카메라가 줌하며 바뀌는 초점거리를 구간마다 풀어요. |
 | PivotAnchor | `pivotanchor/pitch-model` | 고정된 삼각대 축(Pivot)을 가정하고, 구장 기준 사진(Anchor)으로 초기 위치를 잡아요. |
 
+두 엔진은 실제 경기 7개 구장 영상으로 같은 입력·채점기에서 비교할 수 있어요: [experiments/field_benchmark](experiments/field_benchmark/README.md).
+
 ## 설치
 ```bash
 python3.12 -m venv .venv
