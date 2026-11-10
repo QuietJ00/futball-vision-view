@@ -97,9 +97,14 @@ def _read_strokes(image, boxes, H, lines, sky, radius, ground=None):
     ridge = _ridge(image, boxes, sky=sky)
     height, width = ridge.shape
     found = {}
-    near = _near_touchline(ridge, H, lines[1])
+    p1 = camera.warp(lines[1][[0, -1]], H)
+    p2 = camera.warp(lines[2][[0, -1]], H)
+    y1 = np.nanmean(p1[:, 1]) if np.isfinite(p1).all() else -1e9
+    y2 = np.nanmean(p2[:, 1]) if np.isfinite(p2).all() else -1e9
+    near_idx = 1 if y1 >= y2 else 2
+    near = _near_touchline(ridge, H, lines[near_idx])
     if near is not None:
-        found[1] = near
+        found[near_idx] = near
     H_inv = np.linalg.inv(H)
     ground_fit = None
     if ground is not None and len(ground) >= 2 and np.ptp(ground[:, 0]) > 50:
@@ -173,6 +178,8 @@ def _read_strokes(image, boxes, H, lines, sky, radius, ground=None):
         if agree.sum() < max(7, .55*len(points)) or np.ptp(points[agree], axis=0).max() < min_span:
             continue
         points = points[agree]
+        if index in (0, 3) and np.median(np.abs(d_keep[agree])) > 8.0:
+            continue
         found[index] = points[::max(1, len(points)//24)]
     return found
 
@@ -194,7 +201,7 @@ def _near_touchline(ridge, H, model_line):
     visible = (x >= max(64, a[0]-20)) & (x <= min(width-64, b[0]+20)) & (~corner_distorted)
     if not visible.any():
         return None
-    strip = (np.abs(np.arange(height)[:, None]-expected) < 65.) & visible
+    strip = (np.abs(np.arange(height)[:, None]-expected) < 28.) & visible
     mask = np.uint8((ridge > 31) & strip)*255
     detected = cv2.HoughLinesP(mask, 1, np.pi/720, 45, minLineLength=160, maxLineGap=24)
     if detected is None:
@@ -210,6 +217,8 @@ def _near_touchline(ridge, H, model_line):
         cols = np.flatnonzero(visible & (sy >= 4) & (sy < height-4))[::6]
         if len(cols) < 25:
             continue
+        if np.median(np.abs(sy[cols] - expected[cols])) > 12.0:
+            continue
         rows = np.rint(sy[cols]).astype(int)
         band = rows[:, None]+np.arange(-3, 4)
         values = ridge[band, cols[:, None]]
@@ -218,7 +227,7 @@ def _near_touchline(ridge, H, model_line):
         if use.sum() < max(25, .55*len(cols)) or np.median(peaks[use]) < 37:
             continue
         p = np.c_[cols[use], band[use, values[use].argmax(axis=1)]]
-        rank = float(np.minimum(peaks[use], 85).sum())
+        rank = float((np.minimum(peaks[use], 85) - 1.5 * np.abs(sy[cols[use]] - expected[cols[use]])).sum())
         if best is None or rank > best[0]:
             best = rank, p
     return best[1][::max(1, len(best[1])//24)] if best is not None else None
@@ -392,18 +401,15 @@ def _collect_observations(images, boxes, training, checking, pose_fn, lines, met
 
 
 def calibrate(images, boxes, cumulative, inliers, meta, sky, lens_offset_m=0.,
-              threshold_px=10., max_gap_frames=45, log=print, venue=None, reference_bank=None):
+              threshold_px=10., max_gap_frames=90, log=print, venue=None, reference_bank=None):
     """Fit a continuous shot without target-clip clicks. Return a refusal on weak evidence."""
     segments = camera.motion_segments(inliers, len(images))
     cumulative = camera.repair_cumulative(cumulative)
-    if images is not None and len(images) == len(cumulative):
-        cumulative = camera.refine_turf_motion(images, boxes, cumulative, sky)
-        cumulative = camera.repair_cumulative(cumulative)
 
     def fail(message):
         return Result(None, np.zeros(len(images), bool), {}, {}, {}, message)
 
-    if not len(images) or np.count_nonzero(np.bincount(segments) >= 2) != 1:
+    if not len(images) or not (np.bincount(segments) >= 2).any():
         return fail('Use one continuous camera shot for automatic calibration.')
     indices = np.flatnonzero(segments == np.argmax(np.bincount(segments)))
     seeds = _bank_seeds(images, indices, reference_bank, meta, sky, cumulative, boxes=boxes) if reference_bank else {}
@@ -411,6 +417,13 @@ def calibrate(images, boxes, cumulative, inliers, meta, sky, lens_offset_m=0.,
         log(f'검증된 구장 기준 화면과 일치한 프레임 {len(seeds)}개')
     else:
         seeds = field_solver.solve(images, cumulative, meta, boxes, indices, log=log)
+    if not seeds and images is not None and len(images) == len(cumulative):
+        cum_refined = camera.refine_turf_motion(images, boxes, cumulative, sky)
+        cum_refined = camera.repair_cumulative(cum_refined)
+        seeds_refined = field_solver.solve(images, cum_refined, meta, boxes, indices, log=log)
+        if seeds_refined:
+            seeds = seeds_refined
+            cumulative = cum_refined
     if not seeds and venue in pitch.venues():
         reference = pitch.auto(images, cumulative, venue, sky, log=log, boxes=boxes, inliers=inliers)
         if reference:
@@ -421,10 +434,18 @@ def calibrate(images, boxes, cumulative, inliers, meta, sky, lens_offset_m=0.,
         from . import broadcast_pitch
         try:
             cum_broadcast, _ = camera.turf_motion(images, boxes, cumulative, smooth_grass=True)
-            seeds = broadcast_pitch.solve(images, cum_broadcast, meta, boxes, indices, log=log)
-            if seeds:
-                is_broadcast = True
-                cumulative = cum_broadcast
+            cuts = sorted(set(np.flatnonzero(np.diff(segments) != 0) + 1) | set(camera.shot_cuts(images)))
+            shots = [s for s in np.split(np.arange(len(images)), cuts) if len(s) >= 40]
+            shots.sort(key=len, reverse=True)
+            if not shots:
+                shots = [indices]
+            for shot in shots:
+                seeds = broadcast_pitch.solve(images, cum_broadcast, meta, boxes, shot, log=log)
+                if seeds:
+                    is_broadcast = True
+                    cumulative = cum_broadcast
+                    indices = shot
+                    break
         except (ValueError, np.linalg.LinAlgError) as error:
             log(f'중계 카메라 분석 실패: {error}')
             seeds = {}
@@ -449,7 +470,8 @@ def calibrate(images, boxes, cumulative, inliers, meta, sky, lens_offset_m=0.,
                 H = pitch.blend(Ha, Hb, t)
             matrices[k] = H / H[2, 2]
 
-        valid = np.ones(len(images), bool)
+        valid = np.zeros(len(images), bool)
+        valid[indices] = True
 
         res = {'bases': [(k, seeds[k], 0, 1.0) for k in keys],
                'mode': 'camera', 'meta': meta, 'valid': valid,
@@ -474,6 +496,11 @@ def calibrate(images, boxes, cumulative, inliers, meta, sky, lens_offset_m=0.,
         else:
             focal = 5000.
 
+        for k in range(len(images)):
+            if not valid[k]:
+                ref_k = min(np.flatnonzero(valid), key=lambda i: abs(i-k))
+                matrices[k] = pitch.chain(cumulative, ref_k, k, matrices[ref_k])
+
         on_pitch_share = fixed_pitch.player_on_pitch(matrices, boxes, meta, margin=8.0)
         log(f'선수 경기장 내 비율: {on_pitch_share:.1%}')
         if on_pitch_share < 0.60:
@@ -483,7 +510,7 @@ def calibrate(images, boxes, cumulative, inliers, meta, sky, lens_offset_m=0.,
         ref = min(keys)
         from . import camfit
         focal_val, _, pivot = camfit.decompose(matrices[ref])
-        c = fixed_pitch.Calibration(meta, ref, pivot, lens_offset_m, focal_val, matrices, segments == segments[ref])
+        c = fixed_pitch.Calibration(meta, ref, pivot, lens_offset_m, focal_val, matrices, valid)
         return Result(c, valid, {}, {}, {}, None if valid.any() else '중계 카메라 검증 실패')
 
     lines = pitch.model_lines(meta)

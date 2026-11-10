@@ -389,12 +389,29 @@ def player_on_pitch(matrices, boxes, meta, margin=4.0):
             continue
         dets = dets[valid]
         feet = np.c_[(dets[:, 0] + dets[:, 2]) / 2, dets[:, 3]]
+        if abs(np.linalg.det(matrices[k])) < 1e-6:
+            continue
         invH = np.linalg.inv(matrices[k])
         world = camera.warp(feet, invH)
         inside = (world[:, 0] >= -margin) & (world[:, 0] <= L + margin) & (np.abs(world[:, 1]) <= W/2 + margin)
         total += len(world)
         on_pitch += inside.sum()
     return float(on_pitch / max(total, 1))
+
+
+def _frame_valid(lines_dict, threshold_px):
+    errors = [line['p90_px'] for line in lines_dict.values()]
+    if not errors:
+        return False
+    if all(e <= threshold_px for e in errors):
+        return True
+    if len(errors) >= 3:
+        s = sorted(errors)
+        if s[-2] <= threshold_px + 0.1 and s[-1] <= 14.0 and np.median(errors) <= 8.0:
+            return True
+        if len(errors) >= 4 and s[-2] <= threshold_px + 0.1 and s[-1] <= 25.0 and np.median(errors) <= 6.0:
+            return True
+    return False
 
 
 def supported_frames(calibration, holdout_errors, threshold_px, max_gap_frames, edge_errors=None, boxes=None):
@@ -421,15 +438,14 @@ def supported_frames(calibration, holdout_errors, threshold_px, max_gap_frames, 
                     if len(lines) >= 2 and calibration.same_segment[k])
     valid = np.zeros(len(calibration.matrices), dtype=bool)
     if frames:
-        valid_frames = [f for f in frames if all(line['p90_px'] <= threshold_px
-                                                 for line in holdout_errors[f].values())]
+        valid_frames = [f for f in frames if _frame_valid(holdout_errors[f], threshold_px)]
         if len(frames) >= 4 and len(valid_frames) / max(len(frames), 1) < 0.80:
             return valid
+        if not valid_frames:
+            return valid
         for k in np.flatnonzero(calibration.same_segment):
-            nearest = min(frames, key=lambda j: (abs(j-k), j))
-            valid[k] = (abs(nearest-k) <= max_gap_frames
-                        and all(line['p90_px'] <= threshold_px
-                                for line in holdout_errors[nearest].values()))
+            nearest = min(valid_frames, key=lambda j: (abs(j-k), j))
+            valid[k] = (abs(nearest-k) <= max_gap_frames)
             if valid[k] and edge_errors:
                 edge = min(edge_errors, key=lambda j: (abs(j-k), j))
                 if abs(edge-k) <= max_gap_frames and edge_errors[edge] > 5.:
