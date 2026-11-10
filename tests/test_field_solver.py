@@ -105,6 +105,11 @@ class AcceptanceTest(unittest.TestCase):
         for change in ({'keys': 1}, {'gap': 272.}, {'people': -.2}, {'on_pitch': .6}, {'height': 2.4}):
             self.assertIsNotNone(solver._rejection(**{**self.good, **change}), change)
 
+    def test_two_keys_must_agree_more_closely_than_many(self):
+        self.assertIsNotNone(solver._rejection(**{**self.good, 'keys': 2, 'gap': 27.}))
+        self.assertIsNone(solver._rejection(**{**self.good, 'keys': 2, 'gap': 1.}))
+        self.assertIsNone(solver._rejection(**{**self.good, 'keys': 9, 'gap': 25.}))
+
     def test_the_minimum_height_follows_distance_and_lens(self):
         stand = solver.minimum_height((22., 43., 6.), 1600., META)
         self.assertAlmostEqual(stand, 3.1, delta=.2)

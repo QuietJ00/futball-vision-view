@@ -43,6 +43,10 @@ MAX_PEOPLE_ERROR = .15  # median |log(predicted height / box height)|
 MIN_ON_PITCH = .85
 MIN_COVER = .4          # share of a window's strokes the model must explain to count as a key
 MAX_KEY_GAP = 40.       # pixels two keys may differ by once carried to the same frame
+# With only two keys a disagreement cannot be outvoted, so one of them may simply be wrong (DFL
+# 121364: two keys 27 px apart, the later one 40 px off the paint). Clips that pass hold two keys
+# within 1 px, or a 17-25 px gap among nine keys that otherwise agree.
+FEW_KEYS_GAP = 20.
 # The ground error of a foot grows as distance squared over height and focal length. Noise from
 # real clips (3 px on paint, 2 px on feet) gives p95 = 2.3 D^2/(h f) over the pitch, within 10% for
 # lenses of 1000-5400 px, heights of 2-20 m and cameras 5-30 m behind the touchline.
@@ -726,7 +730,7 @@ def _rejection(keys, windows, gap, people, on_pitch, height, lowest=0.):
         return f'카메라가 낮아요 ({height:.1f} m, 이 위치와 화각의 최소 높이 {lowest:.1f} m)'
     if keys < min(2, windows):
         return f'페인트선이 설명되는 구간이 부족해요 ({keys}개)'
-    if gap > MAX_KEY_GAP:
+    if gap > MAX_KEY_GAP or (keys < 3 and gap > FEW_KEYS_GAP):
         return f'구간끼리 어긋나요 ({gap:.0f} px)'
     if abs(people) > MAX_PEOPLE_ERROR:
         return f'사람 키가 맞지 않아요 ({people:+.2f})'
