@@ -2,11 +2,25 @@ import unittest
 
 import numpy as np
 
+from bench import validate_fixed_mount_fixtures
 from score import Projection, gates, paint_scores
 from sensor import aligned, frame_times, seconds
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_fixed_mount_suite_requires_published_pitch_dimensions(self):
+        clip = dict(id='fixture', camera_mount='documented_fixed', venue_name='Stadium',
+                    dimensions='published', dimensions_source='publisher', footage_source='dataset',
+                    camera_evidence='static camera in source', pitch={'length': 103, 'width': 64})
+        manifest = {'suite': 'fixed_mount_v2', 'clips': [clip]}
+        validate_fixed_mount_fixtures(manifest)
+        with self.assertRaisesRegex(ValueError, 'positive pitch length and width'):
+            validate_fixed_mount_fixtures({**manifest, 'clips': [{**clip, 'pitch': {'length': 103}}]})
+        with self.assertRaisesRegex(ValueError, 'fixed camera viewpoint'):
+            validate_fixed_mount_fixtures({**manifest, 'clips': [{**clip, 'camera_mount': 'moving'}]})
+        with self.assertRaisesRegex(ValueError, 'provide the stadium and sources'):
+            validate_fixed_mount_fixtures({**manifest, 'clips': [{**clip, 'dimensions': 'unverified template'}]})
+
     def test_segment_times_follow_each_native_start(self):
         first = '2013-11-07 21:05:50.587623'
         second = '2013-11-07 21:05:53.588407'

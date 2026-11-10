@@ -2,6 +2,7 @@
 import argparse
 import io
 import json
+import math
 from pathlib import Path
 import re
 import subprocess
@@ -11,6 +12,22 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
+
+
+def validate_fixed_mount_fixtures(manifest):
+    if manifest.get('suite') != 'fixed_mount_v2':
+        return
+    for clip in manifest['clips']:
+        if clip.get('camera_mount') not in ('documented_fixed', 'fixed_viewpoint_consistent'):
+            raise ValueError(f"{clip['id']}: a reviewed fixed camera viewpoint is required")
+        if clip.get('dimensions') != 'published' or not all(
+            clip.get(key) for key in ('venue_name', 'dimensions_source', 'footage_source', 'camera_evidence')
+        ):
+            raise ValueError(f"{clip['id']}: provide the stadium and sources for its dimensions and camera")
+        pitch = clip.get('pitch', {})
+        if not all(isinstance(pitch.get(key), (int, float)) and math.isfinite(pitch[key]) and pitch[key] > 0
+                   for key in ('length', 'width')):
+            raise ValueError(f"{clip['id']}: provide positive pitch length and width in metres")
 
 
 def snapshot(revision, directory):
@@ -49,6 +66,7 @@ def main():
     if args.strict and args.stage != 'score':
         parser.error('--strict applies to score')
     manifest = json.loads(args.manifest.read_text())
+    validate_fixed_mount_fixtures(manifest)
     clips = [clip for clip in manifest['clips'] if not args.clip or clip['id'] in args.clip]
     if args.clip and set(args.clip) != {clip['id'] for clip in clips}:
         parser.error('unknown clip')
