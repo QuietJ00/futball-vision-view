@@ -65,3 +65,33 @@ class CentreShiftedTest(unittest.TestCase):
         finally:
             field_geometry.hybrid_calib.refine_long_lens = original
         self.assertIs(kept, result)
+
+
+class CameraRefusalTest(unittest.TestCase):
+    def test_a_refusal_by_both_camera_solvers_is_not_overruled(self):
+        import os
+        F = np.zeros((4, 8, 8, 3), np.uint8)
+        cumulative = np.tile(np.eye(3), (4, 1, 1))
+        patched = {'solve': field_geometry.field_solver.solve, '_from_long_lens': field_geometry._from_long_lens,
+                   '_automatic_anchor': field_geometry._automatic_anchor}
+
+        def single_frame(*args, **kwargs):
+            raise AssertionError('single-frame search ran after both camera solvers refused')
+
+        field_geometry.field_solver.solve = lambda *args, **kwargs: None
+        field_geometry._from_long_lens = lambda F_, cum, *args: ({}, cum, np.zeros(len(F_), int), None, False)
+        field_geometry._automatic_anchor = single_frame
+        before = os.environ.get('AUTOHL_CALIBRATOR')
+        os.environ['AUTOHL_CALIBRATOR'] = 'camera'
+        try:
+            result = field_geometry.calibrate(F, cumulative, {'length': 105, 'width': 68}, 0,
+                                              inliers=np.full(4, 500), boxes=[np.empty((0, 5))]*4, log=lambda *_: None)
+        finally:
+            field_geometry.field_solver.solve = patched['solve']
+            field_geometry._from_long_lens = patched['_from_long_lens']
+            field_geometry._automatic_anchor = patched['_automatic_anchor']
+            if before is None:
+                os.environ.pop('AUTOHL_CALIBRATOR', None)
+            else:
+                os.environ['AUTOHL_CALIBRATOR'] = before
+        self.assertIsNone(result)

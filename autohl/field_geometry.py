@@ -692,6 +692,12 @@ def calibrate(F, cumulative, meta, sky, *, inliers=None, boxes=None, marks=None,
             anchors, cumulative, segments, followed, centre_shifted = _from_long_lens(F, cumulative, meta, boxes,
                                                                                       inliers, log)
             long_lens = bool(anchors)
+            if not anchors:
+                # Both camera solvers looked at the whole clip and refused it. The single-frame line
+                # search below checks far less (two frames agreeing within 16 px), so it must not
+                # overrule them: on DFL scouting clips it laid lines 14-30 px off paint.
+                log('카메라를 믿을 수 있게 풀지 못해서 자동 보정을 하지 않았어요.')
+                return None
         mode = 'camera' if anchors else mode
         if anchors and boxes is not None and followed is None:
             # The solver ties its keys by pure rotation, which a ground-plane path is not, so only
