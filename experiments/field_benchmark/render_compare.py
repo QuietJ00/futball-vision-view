@@ -297,7 +297,8 @@ def card(lines_spec):
 
 def title_card(manifest, run):
     e = manifest['engines']
-    spec = [((120, 260), '외부 실제 경기 7구장 벤치마크', 60, (240, 240, 240), True),
+    scope = '고정 위치 카메라' if manifest.get('suite') == 'fixed_mount_v2' else '외부 실제 경기'
+    spec = [((120, 260), f"{scope} {len(manifest['clips'])}개 클립 벤치마크", 60, (240, 240, 240), True),
             ((120, 350), '구장 인식 · 선수 속도 비교', 44, (200, 200, 200), False),
             ((120, 480), f"PivotAnchor  {e['pivotanchor']}", 28, RGB['pivotanchor'], True),
             ((120, 530), f"TurfLens        {e['turflens']}", 28, RGB['turflens'], True),
@@ -338,8 +339,15 @@ def summary_card(manifest, report):
             text(img, (cols[5], y), st, 20, col, True)
             y += 50 if i else 36
         ImageDraw.Draw(img).line((80, y - 12, W - 80, y - 12), fill=(50, 50, 56))
-    text(img, (80, H - 60), '합격선: 커버리지 ≥90%, 표식 프레임의 ≥80%가 선 p95 ≤20 px, 속도 표본 ≥80% & MAE ≤3 km/h, 대조군 오탐 0. '
-         'DFL·Charrua 치수는 미검증 템플릿, 센서는 Alfheim 두 경기 3초 구간.', 18, (140, 140, 140))
+    policy = manifest['policy']
+    caption = (f"커버리지 ≥{policy['elevated_frame_coverage']:.0%}, 표식 프레임의 "
+               f"≥{policy['elevated_good_labelled_share']:.0%}가 선 p95 ≤{policy['line_p95_px']:g} px, "
+               f"속도 표본 ≥{policy['speed_sample_coverage']:.0%} 및 MAE ≤{policy['speed_mae_kmh']:g} km/h. ")
+    if any(clip['class'].startswith('negative_') for clip in manifest['clips']):
+        caption += '대조군 오탐 0. '
+    if manifest.get('suite') == 'fixed_mount_v2':
+        caption += '구장별 공개 치수 입력. '
+    text(img, (80, H - 60), caption + '센서는 Alfheim의 두 경기 3초 구간.', 18, (140, 140, 140))
     return np.array(img)[:, :, ::-1].copy()
 
 
@@ -360,7 +368,7 @@ def render_clip(write, clip, rep, run, labels, hold=12):
         p95_bars(chart0, rep, labels, (PW, H - TOP - PH - 8))
     header = Image.new('RGB', (W, TOP), (12, 13, 16))
     text(header, (24, 36), f"{cid}", 34, (240, 240, 240), True, anchor='lm')
-    text(header, (360, 36), f"{clip['match']}  ·  {GROUP.get(clip['class'], clip['class'])}  ·  "
+    text(header, (360, 36), f"{clip.get('venue_name', clip['match'])}  ·  {GROUP.get(clip['class'], clip['class'])}  ·  "
          f"{clip['pitch']['length']}×{clip['pitch']['width']} m ({clip['dimensions']})", 22, (180, 180, 180), anchor='lm')
     header = np.array(header)[:, :, ::-1].copy()
     labels_img = {}

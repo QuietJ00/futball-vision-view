@@ -270,6 +270,9 @@ def score(clips, labels_dir, data, cache, output, revisions, policy):
             result[name] = dict(venue=clip['venue'], match=clip['match'], camera_class=clip['class'],
                                 pitch_dimensions=clip['dimensions'], engines=results,
                                 common_motion_px=common_errors(*motions), common_speed_kmh=common_errors(*velocities))
+            for key in ('venue_name', 'pitch', 'dimensions_source', 'footage_source', 'camera_mount', 'camera_evidence'):
+                if key in clip:
+                    result[name][key] = clip[key]
             control = manual_control(labels, len(frames))
             if control is not None:
                 control_speed, _ = velocity_scores(control, targets, inputs['fps'], writer, name, 'manual_control')

@@ -1,19 +1,4 @@
 {
-  "u17.webm": {
-    "url": "https://upload.wikimedia.org/wikipedia/commons/5/5e/2018_FIFA_U-17_Women%27s_World_Cup_-_New_Zealand_vs_Canada_-_27.webm",
-    "bytes": 29944687,
-    "sha256": "9ae5e802a2b43014309d2239d0d4c05326164608c98fc6dcef6196302cbceb6d"
-  },
-  "amateur.webm": {
-    "url": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Amateurfu%C3%9Fball_Torschuss_von_oben.webm",
-    "bytes": 24894974,
-    "sha256": "42e9d2a0468a7fc08622eccabea2bd640324f9550d1909f99ead0e49a1bfeac0"
-  },
-  "zenit.webm": {
-    "url": "https://upload.wikimedia.org/wikipedia/commons/a/ac/2021-12-08_-_FC_Zenit_Saint_Petersburg_v_Chelsea_F.C._-_Ozdoev_goal.webm",
-    "bytes": 48808784,
-    "sha256": "2bbee5f57386eb02fa4f208ae3c45b603d3c7646610869c2c10333898f8e4547"
-  },
   "dfl_2e57b9.mp4": {
     "url": "https://drive.usercontent.google.com/download?id=19PGw55V8aA6GZu5-Aac5_9mCy3fNxmEf&export=download&confirm=t",
     "bytes": 21096528,
@@ -53,5 +38,20 @@
     "url": "https://datasets.simula.no/downloads/alfheim/2013-11-03/First%20Half/1/0071_2013-11-03%2018:01:59.261818000.h264",
     "bytes": 1686675,
     "sha256": "cb8dc774c1933ecaa25943c7877f75cf1116bc31ab2130dffcba4cfdf21c4ce1"
+  },
+  "dfl_0bfacc.mp4": {
+    "url": "https://drive.usercontent.google.com/download?id=12TqauVZ9tLAv8kWxTTBFWtgt2hNQ4_ZF&export=download&confirm=t",
+    "bytes": 19882918,
+    "sha256": "43d342c78fbb40e522f48ab378fbee83b5b880d35c056836e0d493ec2b15ee51"
+  },
+  "dfl_573e61.mp4": {
+    "url": "https://drive.usercontent.google.com/download?id=1yYPKuXbHsCxqjA9G-S6aeR2Kcnos8RPU&export=download&confirm=t",
+    "bytes": 18897966,
+    "sha256": "ed1038048d56e86c2eac93394344aadcd45df26a01e158c5dd55cd6409104685"
+  },
+  "dfl_121364.mp4": {
+    "url": "https://drive.usercontent.google.com/download?id=1vVwjW1dE1drIdd4ZSILfbCGPD4weoNiu&export=download&confirm=t",
+    "bytes": 17245114,
+    "sha256": "4f3ef60e27f925f2462b725c85fc30e983e27345ce52dad158148e265011f842"
   }
 }
