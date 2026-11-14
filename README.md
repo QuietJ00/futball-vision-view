@@ -1,6 +1,6 @@
 # futball-vision
 
-아마추어 축구 경기 영상에서 선수 한 명을 찍으면, 속도 분석이 들어간 중계 스타일 하이라이트를 만들어 주는 로컬 웹앱이에요. 화면은 QuarterMate 다크 테마를 따릅니다.
+LLM 에이전트 두 개가 각각 만든 구장 인식 엔진을, 커밋과 입력을 고정해 같은 조건에서 채점하는 평가 CLI(field_benchmark)와 그 엔진을 쓰는 경기 영상 분석 앱입니다. 엔진과 채점기 코드는 에이전트가 작성했고, 저장소 소유자는 무엇을 고정하고 무엇을 실패로 셀지를 정했습니다.
 
 [![Unit tests](https://github.com/QuietJ00/futball-vision-view/actions/workflows/tests.yml/badge.svg)](https://github.com/QuietJ00/futball-vision-view/actions/workflows/tests.yml)
 
