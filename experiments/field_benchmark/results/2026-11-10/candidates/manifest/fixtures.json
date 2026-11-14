@@ -1,0 +1,167 @@
+{
+  "suite": "fixed_mount_v2",
+  "engines": {
+    "pivotanchor": "5f63329435616b7f78c272863cc938616e67f2f5",
+    "turflens": "bf09bdb63d0edcd0baae05dcf30de038c279b76c"
+  },
+  "policy": {
+    "elevated_frame_coverage": 0.9,
+    "elevated_good_labelled_share": 0.8,
+    "line_p95_px": 20,
+    "speed_sample_coverage": 0.8,
+    "speed_mae_kmh": 3.0
+  },
+  "clips": [
+    {
+      "id": "anzhi_c1",
+      "venue": "alfheim",
+      "match": "2013-11-07 Tromsø IL vs Anzhi",
+      "class": "elevated_fixed",
+      "sources": [
+        "0176_2013-11-07 21:05:50.587623000.h264",
+        "0177_2013-11-07 21:05:53.588407000.h264"
+      ],
+      "segment_seconds": 3,
+      "duration": 6,
+      "pitch": {
+        "length": 105,
+        "width": 68
+      },
+      "dimensions": "published",
+      "sensor": "anzhi_zxy.csv",
+      "venue_name": "Alfheim Stadion",
+      "dimensions_source": "https://home.simula.no/~paalh/publications/files/mmsys2014-dataset.pdf",
+      "footage_source": "https://datasets.simula.no/alfheim/",
+      "camera_mount": "documented_fixed",
+      "camera_evidence": "Fixed single camera 1 above the stands, documented by Alfheim."
+    },
+    {
+      "id": "stromsgodset_c1",
+      "venue": "alfheim",
+      "match": "2013-11-03 Tromsø IL vs Strømsgodset",
+      "class": "elevated_fixed",
+      "sources": [
+        "0070_2013-11-03 18:01:56.260957000.h264",
+        "0071_2013-11-03 18:01:59.261818000.h264"
+      ],
+      "segment_seconds": 3,
+      "duration": 6,
+      "pitch": {
+        "length": 105,
+        "width": 68
+      },
+      "dimensions": "published",
+      "sensor": "stromsgodset_zxy.csv",
+      "venue_name": "Alfheim Stadion",
+      "dimensions_source": "https://home.simula.no/~paalh/publications/files/mmsys2014-dataset.pdf",
+      "footage_source": "https://datasets.simula.no/alfheim/",
+      "camera_mount": "documented_fixed",
+      "camera_evidence": "Fixed single camera 1 above the stands, documented by Alfheim."
+    },
+    {
+      "id": "dfl_2e57b9",
+      "venue": "rheinenergiestadion",
+      "match": "DFL Scouting Feed 2e57b9_0",
+      "class": "elevated_pan_zoom",
+      "sources": [
+        "dfl_2e57b9.mp4"
+      ],
+      "start": 8,
+      "duration": 6,
+      "pitch": {
+        "length": 105,
+        "width": 68
+      },
+      "dimensions": "published",
+      "venue_name": "RheinEnergieSTADION",
+      "dimensions_source": "https://www.koelnersportstaetten.de/wp-content/uploads/Factsheet-2022.pdf",
+      "footage_source": "https://github.com/roboflow/sports/blob/main/examples/soccer/setup.sh",
+      "camera_mount": "fixed_viewpoint_consistent",
+      "camera_evidence": "RheinEnergie lettering and REWE dugouts. One elevated scouting shot."
+    },
+    {
+      "id": "dfl_08fd33",
+      "venue": "borussia_park",
+      "match": "DFL Scouting Feed 08fd33_0",
+      "class": "elevated_pan_zoom",
+      "sources": [
+        "dfl_08fd33.mp4"
+      ],
+      "start": 13,
+      "duration": 6,
+      "pitch": {
+        "length": 105,
+        "width": 68
+      },
+      "dimensions": "published",
+      "venue_name": "BORUSSIA-PARK",
+      "dimensions_source": "https://www.transfermarkt.de/borussia-monchengladbach/stadion/verein/18",
+      "footage_source": "https://github.com/roboflow/sports/blob/main/examples/soccer/setup.sh",
+      "camera_mount": "fixed_viewpoint_consistent",
+      "camera_evidence": "BORUSSIA seating, DIE FOHLEN signage. One elevated scouting shot."
+    },
+    {
+      "id": "dfl_0bfacc",
+      "match": "DFL Scouting Feed 0bfacc_0",
+      "class": "elevated_pan_zoom",
+      "sources": [
+        "dfl_0bfacc.mp4"
+      ],
+      "start": 4,
+      "duration": 6,
+      "pitch": {
+        "length": 105,
+        "width": 68
+      },
+      "venue": "mhp_arena",
+      "venue_name": "MHP Arena (then Mercedes-Benz Arena)",
+      "dimensions": "published",
+      "dimensions_source": "https://www.mhparena-stuttgart.de/arena/daten-fakten",
+      "footage_source": "https://github.com/roboflow/sports/blob/main/examples/soccer/setup.sh",
+      "camera_mount": "fixed_viewpoint_consistent",
+      "camera_evidence": "STUTTGART seating and Mercedes-Benz Bank signs. One elevated scouting shot."
+    },
+    {
+      "id": "dfl_573e61",
+      "match": "DFL Scouting Feed 573e61_0",
+      "class": "elevated_pan_zoom",
+      "sources": [
+        "dfl_573e61.mp4"
+      ],
+      "start": 2,
+      "duration": 6,
+      "pitch": {
+        "length": 105,
+        "width": 68
+      },
+      "venue": "rheinenergiestadion",
+      "venue_name": "RheinEnergieSTADION",
+      "dimensions": "published",
+      "dimensions_source": "https://www.koelnersportstaetten.de/wp-content/uploads/Factsheet-2022.pdf",
+      "footage_source": "https://github.com/roboflow/sports/blob/main/examples/soccer/setup.sh",
+      "camera_mount": "fixed_viewpoint_consistent",
+      "camera_evidence": "Same REWE dugouts and distinctive green corner sign as the Köln feed. One elevated scouting shot."
+    },
+    {
+      "id": "dfl_121364",
+      "match": "DFL Scouting Feed 121364_0",
+      "class": "elevated_pan_zoom",
+      "sources": [
+        "dfl_121364.mp4"
+      ],
+      "start": 7,
+      "duration": 6,
+      "pitch": {
+        "length": 105,
+        "width": 68
+      },
+      "venue": "alte_foersterei",
+      "venue_name": "Stadion An der Alten Försterei",
+      "dimensions": "published",
+      "dimensions_source": "https://www.stadion-an-der-alten-foersterei.de/fakten-zahlen/",
+      "footage_source": "https://github.com/roboflow/sports/blob/main/examples/soccer/setup.sh",
+      "camera_mount": "fixed_viewpoint_consistent",
+      "camera_evidence": "Union Berlin banners and stadium-name fascia. One elevated scouting shot."
+    }
+  ]
+}

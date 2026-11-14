@@ -1,0 +1,1655 @@
+{
+  "anzhi_c1": {
+    "venue": "alfheim",
+    "match": "2013-11-07 Tromsø IL vs Anzhi",
+    "camera_class": "elevated_fixed",
+    "pitch_dimensions": "published",
+    "engines": {
+      "pivotanchor": {
+        "engine": "pivotanchor",
+        "revision": "5f63329435616b7f78c272863cc938616e67f2f5",
+        "input_key": "ac39f2d3255e5642f4e24802da7f9db01f54700cf53e87f566e88ee1a2f11ab7",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": null,
+        "error": null,
+        "supported": 180,
+        "frames": 180,
+        "elapsed_s": 211.094,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 4,
+          "line_error_px": {
+            "median": 3.0107386716891096,
+            "p95": 9.955888046818979,
+            "max": 10.174032027734576,
+            "n": 124
+          },
+          "landmark_error_m": {
+            "median": 1.0677111454949946,
+            "p95": 3.8903119968096624,
+            "max": 3.9579911755230555,
+            "n": 24
+          },
+          "within_px": {
+            "10": 3,
+            "20": 4,
+            "40": 4
+          },
+          "rotated_180": false,
+          "per_frame": {
+            "15": {
+              "median": 3.026841069602778,
+              "p95": 9.83320302806006,
+              "max": 9.957909194773706,
+              "n": 31
+            },
+            "60": {
+              "median": 2.994636273775441,
+              "p95": 9.880940645095073,
+              "max": 10.063091292275837,
+              "n": 31
+            },
+            "105": {
+              "median": 2.8754277030318707,
+              "p95": 10.095537198829678,
+              "max": 10.174032027734576,
+              "n": 31
+            },
+            "150": {
+              "median": 3.0411372099292513,
+              "p95": 9.985304794070029,
+              "max": 10.034625302000794,
+              "n": 31
+            }
+          }
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": {
+            "median": 0.23492940908983628,
+            "p95": 0.47381925766350574,
+            "max": 0.5518058339157259,
+            "n": 10
+          },
+          "per_pair": {
+            "0/30": 0.12985616783525605,
+            "15/45": 0.21658681102412491,
+            "30/60": 0.21105372256423427,
+            "45/75": 0.2335424063983947,
+            "60/90": 0.3785023311330149,
+            "75/105": 0.2729753351043597,
+            "90/120": 0.5518058339157259,
+            "105/135": 0.20082052401950948,
+            "120/150": 0.2400376558262616,
+            "135/165": 0.23631641178127788
+          }
+        },
+        "speed": [
+          {
+            "id": "A",
+            "eligible": 90,
+            "scored": 87,
+            "identity_audit_pass": true,
+            "identity_check_error_px": {
+              "30": 6.353885296361156,
+              "60": 7.175743361462869
+            },
+            "sensor_check_error_m": {
+              "30": 0.6972778460608816,
+              "60": 0.14732605181069924
+            },
+            "tracking_error": null,
+            "error_kmh": {
+              "mae": 2.813660294271916,
+              "rmse": 3.290852245168756,
+              "bias": 2.6762402251466924,
+              "absolute": {
+                "median": 2.8313918451534636,
+                "p95": 5.582517265750206,
+                "max": 5.761922237854153,
+                "n": 87
+              }
+            },
+            "sustained_peak_same_support": {
+              "sensor_kmh": 11.72743505033896,
+              "estimate_kmh": 14.634403845390954,
+              "timing_error_s": 0.5333333333333333
+            }
+          },
+          {
+            "id": "B",
+            "eligible": 90,
+            "scored": 87,
+            "identity_audit_pass": true,
+            "identity_check_error_px": {
+              "30": 14.84674896589187,
+              "60": 11.740535952145894
+            },
+            "sensor_check_error_m": {
+              "30": 2.81989162454182,
+              "60": 1.9021402407286394
+            },
+            "tracking_error": null,
+            "error_kmh": {
+              "mae": 2.9492670420861704,
+              "rmse": 3.235913201511137,
+              "bias": 0.9987321729669243,
+              "absolute": {
+                "median": 2.904343928712265,
+                "p95": 5.1100847946163155,
+                "max": 6.557222076767178,
+                "n": 87
+              }
+            },
+            "sustained_peak_same_support": {
+              "sensor_kmh": 20.481774005338295,
+              "estimate_kmh": 17.487554880977743,
+              "timing_error_s": 0.0
+            }
+          }
+        ],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": true,
+          "field_accuracy_yield": true,
+          "speed": true
+        }
+      },
+      "turflens": {
+        "engine": "turflens",
+        "revision": "bf09bdb63d0edcd0baae05dcf30de038c279b76c",
+        "input_key": "ac39f2d3255e5642f4e24802da7f9db01f54700cf53e87f566e88ee1a2f11ab7",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": null,
+        "error": null,
+        "supported": 177,
+        "frames": 180,
+        "elapsed_s": 345.148,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 4,
+          "line_error_px": {
+            "median": 2.3628237680798865,
+            "p95": 5.543610233718954,
+            "max": 9.082933266989208,
+            "n": 124
+          },
+          "landmark_error_m": {
+            "median": 0.9845242870922295,
+            "p95": 2.664444424294101,
+            "max": 3.3118905496908284,
+            "n": 24
+          },
+          "within_px": {
+            "10": 4,
+            "20": 4,
+            "40": 4
+          },
+          "rotated_180": false,
+          "per_frame": {
+            "15": {
+              "median": 2.5476791099516074,
+              "p95": 4.559445545388919,
+              "max": 5.550517077291334,
+              "n": 31
+            },
+            "60": {
+              "median": 2.3187273983949557,
+              "p95": 4.8724322882733615,
+              "max": 6.944356651302752,
+              "n": 31
+            },
+            "105": {
+              "median": 2.6758408736456696,
+              "p95": 6.428027427715354,
+              "max": 9.082933266989208,
+              "n": 31
+            },
+            "150": {
+              "median": 2.110999830010571,
+              "p95": 5.184375425881969,
+              "max": 6.634294454415368,
+              "n": 31
+            }
+          }
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": {
+            "median": 1.329150381880387,
+            "p95": 1.5939488100194557,
+            "max": 1.600757525747277,
+            "n": 9
+          },
+          "per_pair": {
+            "15/45": 0.8555957056461906,
+            "30/60": 1.329150381880387,
+            "45/75": 1.3790660527812628,
+            "60/90": 1.5837357364277236,
+            "75/105": 1.5238614606210579,
+            "90/120": 1.183979102698864,
+            "105/135": 0.7516733615186608,
+            "120/150": 1.1646262611154534,
+            "135/165": 1.600757525747277
+          }
+        },
+        "speed": [
+          {
+            "id": "A",
+            "eligible": 90,
+            "scored": 82,
+            "identity_audit_pass": true,
+            "identity_check_error_px": {
+              "30": 6.353885296361156,
+              "60": 7.175743361462869
+            },
+            "sensor_check_error_m": {
+              "30": 0.6972778460608816,
+              "60": 0.14732605181069924
+            },
+            "tracking_error": null,
+            "error_kmh": {
+              "mae": 2.6325084059199377,
+              "rmse": 3.113868310154785,
+              "bias": 2.392303873718142,
+              "absolute": {
+                "median": 2.466649757411229,
+                "p95": 5.266147656523718,
+                "max": 5.424590095549775,
+                "n": 82
+              }
+            },
+            "sustained_peak_same_support": {
+              "sensor_kmh": 11.72743505033896,
+              "estimate_kmh": 14.29546484075292,
+              "timing_error_s": 0.5333333333333333
+            }
+          },
+          {
+            "id": "B",
+            "eligible": 90,
+            "scored": 82,
+            "identity_audit_pass": true,
+            "identity_check_error_px": {
+              "30": 14.84674896589187,
+              "60": 11.740535952145894
+            },
+            "sensor_check_error_m": {
+              "30": 2.81989162454182,
+              "60": 1.9021402407286394
+            },
+            "tracking_error": null,
+            "error_kmh": {
+              "mae": 2.861210664907649,
+              "rmse": 3.0956003673332835,
+              "bias": 1.335616030965681,
+              "absolute": {
+                "median": 3.1117863024208603,
+                "p95": 4.803134522447088,
+                "max": 4.936508127947766,
+                "n": 82
+              }
+            },
+            "sustained_peak_same_support": {
+              "sensor_kmh": 20.481774005338295,
+              "estimate_kmh": 17.203441903683068,
+              "timing_error_s": 0.0
+            }
+          }
+        ],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": true,
+          "field_accuracy_yield": true,
+          "speed": true
+        }
+      }
+    },
+    "common_motion_px": {
+      "pivotanchor": {
+        "median": 0.23631641178127788,
+        "p95": 0.4824844328026414,
+        "max": 0.5518058339157259,
+        "n": 9
+      },
+      "turflens": {
+        "median": 1.329150381880387,
+        "p95": 1.5939488100194557,
+        "max": 1.600757525747277,
+        "n": 9
+      }
+    },
+    "common_speed_kmh": {
+      "pivotanchor": {
+        "median": 2.797084235646217,
+        "p95": 5.271695570769999,
+        "max": 5.761922237854153,
+        "n": 164
+      },
+      "turflens": {
+        "median": 2.844830147671357,
+        "p95": 4.953319049695188,
+        "max": 5.424590095549775,
+        "n": 164
+      }
+    },
+    "venue_name": "Alfheim Stadion",
+    "pitch": {
+      "length": 105,
+      "width": 68
+    },
+    "dimensions_source": "https://home.simula.no/~paalh/publications/files/mmsys2014-dataset.pdf",
+    "footage_source": "https://datasets.simula.no/alfheim/",
+    "camera_mount": "documented_fixed",
+    "camera_evidence": "Fixed single camera 1 above the stands, documented by Alfheim.",
+    "manual_control": {
+      "speed": [
+        {
+          "id": "A",
+          "eligible": 90,
+          "scored": 87,
+          "identity_audit_pass": true,
+          "identity_check_error_px": {
+            "30": 6.353885296361156,
+            "60": 7.175743361462869
+          },
+          "sensor_check_error_m": {
+            "30": 0.6972778460608816,
+            "60": 0.14732605181069924
+          },
+          "tracking_error": null,
+          "error_kmh": {
+            "mae": 2.999886709515552,
+            "rmse": 3.504309090541309,
+            "bias": 2.9590812110430793,
+            "absolute": {
+              "median": 2.982743659868877,
+              "p95": 5.86714151651328,
+              "max": 6.038800816829921,
+              "n": 87
+            }
+          },
+          "sustained_peak_same_support": {
+            "sensor_kmh": 11.72743505033896,
+            "estimate_kmh": 14.918665671737132,
+            "timing_error_s": 0.5333333333333333
+          }
+        },
+        {
+          "id": "B",
+          "eligible": 90,
+          "scored": 87,
+          "identity_audit_pass": true,
+          "identity_check_error_px": {
+            "30": 14.84674896589187,
+            "60": 11.740535952145894
+          },
+          "sensor_check_error_m": {
+            "30": 2.81989162454182,
+            "60": 1.9021402407286394
+          },
+          "tracking_error": null,
+          "error_kmh": {
+            "mae": 2.8601224072502243,
+            "rmse": 3.128698805562651,
+            "bias": 0.6834380959700426,
+            "absolute": {
+              "median": 2.986603871878799,
+              "p95": 4.737463549520635,
+              "max": 6.557222076767178,
+              "n": 87
+            }
+          },
+          "sustained_peak_same_support": {
+            "sensor_kmh": 20.481774005338295,
+            "estimate_kmh": 17.07748116927675,
+            "timing_error_s": 0.0
+          }
+        }
+      ],
+      "paint": {
+        "labelled_frames": 4,
+        "scored_frames": 4,
+        "line_error_px": {
+          "median": 3.0103033863032334,
+          "p95": 6.764916669501255,
+          "max": 7.175424224091719,
+          "n": 124
+        },
+        "landmark_error_m": {
+          "median": 1.2295276842669156,
+          "p95": 2.1268217322696774,
+          "max": 2.1268217322696774,
+          "n": 24
+        },
+        "within_px": {
+          "10": 4,
+          "20": 4,
+          "40": 4
+        },
+        "rotated_180": false,
+        "per_frame": {
+          "15": {
+            "median": 3.0103033863032334,
+            "p95": 6.244718133815552,
+            "max": 7.175424224091719,
+            "n": 31
+          },
+          "60": {
+            "median": 3.0103033863032334,
+            "p95": 6.244718133815552,
+            "max": 7.175424224091719,
+            "n": 31
+          },
+          "105": {
+            "median": 3.0103033863032334,
+            "p95": 6.244718133815552,
+            "max": 7.175424224091719,
+            "n": 31
+          },
+          "150": {
+            "median": 3.0103033863032334,
+            "p95": 6.244718133815552,
+            "max": 7.175424224091719,
+            "n": 31
+          }
+        }
+      }
+    }
+  },
+  "stromsgodset_c1": {
+    "venue": "alfheim",
+    "match": "2013-11-03 Tromsø IL vs Strømsgodset",
+    "camera_class": "elevated_fixed",
+    "pitch_dimensions": "published",
+    "engines": {
+      "pivotanchor": {
+        "engine": "pivotanchor",
+        "revision": "5f63329435616b7f78c272863cc938616e67f2f5",
+        "input_key": "80e083177fe49fe75850be61e58c23d738725bc760d5d8a32382811ec60945aa",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": null,
+        "error": null,
+        "supported": 180,
+        "frames": 180,
+        "elapsed_s": 149.373,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 4,
+          "line_error_px": {
+            "median": 2.5600473146171456,
+            "p95": 10.175377158886443,
+            "max": 11.12702089476207,
+            "n": 124
+          },
+          "landmark_error_m": {
+            "median": 0.7613933925914155,
+            "p95": 3.5356248001339035,
+            "max": 3.6442738718729397,
+            "n": 24
+          },
+          "within_px": {
+            "10": 2,
+            "20": 4,
+            "40": 4
+          },
+          "rotated_180": false,
+          "per_frame": {
+            "15": {
+              "median": 2.656260437202021,
+              "p95": 9.893833392630448,
+              "max": 10.749480800088191,
+              "n": 31
+            },
+            "60": {
+              "median": 2.5159181046845855,
+              "p95": 9.90666163909502,
+              "max": 10.9987081542577,
+              "n": 31
+            },
+            "105": {
+              "median": 2.529385371666768,
+              "p95": 10.32478480007071,
+              "max": 11.12702089476207,
+              "n": 31
+            },
+            "150": {
+              "median": 2.320667792141012,
+              "p95": 10.328809915402818,
+              "max": 10.904077960262471,
+              "n": 31
+            }
+          }
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": {
+            "median": 0.36915237132568224,
+            "p95": 1.0192810900442484,
+            "max": 1.3622221720907814,
+            "n": 10
+          },
+          "per_pair": {
+            "0/30": 1.3622221720907814,
+            "15/45": 0.4977964196336983,
+            "30/60": 0.38895816411919204,
+            "45/75": 0.35571442380946316,
+            "60/90": 0.6001308786540432,
+            "75/105": 0.3273258973579313,
+            "90/120": 0.3825903188419013,
+            "105/135": 0.22143867599816738,
+            "120/150": 0.14245694889649393,
+            "135/165": 0.26494841879427117
+          }
+        },
+        "speed": [
+          {
+            "id": "A",
+            "eligible": 90,
+            "scored": 0,
+            "identity_audit_pass": false,
+            "identity_check_error_px": {
+              "30": null,
+              "60": null
+            },
+            "sensor_check_error_m": {
+              "30": 1.1644677524280687,
+              "60": 0.6338650140166692
+            },
+            "tracking_error": null,
+            "error_kmh": null,
+            "sustained_peak_same_support": null
+          },
+          {
+            "id": "B",
+            "eligible": 90,
+            "scored": 87,
+            "identity_audit_pass": true,
+            "identity_check_error_px": {
+              "30": 6.216889025756936,
+              "60": 5.514997333117867
+            },
+            "sensor_check_error_m": {
+              "30": 2.1244181964077367,
+              "60": 1.4055886301288663
+            },
+            "tracking_error": null,
+            "error_kmh": {
+              "mae": 2.4699667006853527,
+              "rmse": 2.8752060885805526,
+              "bias": -0.8748932174289014,
+              "absolute": {
+                "median": 2.3673175816327277,
+                "p95": 4.854314288322127,
+                "max": 4.932347171377895,
+                "n": 87
+              }
+            },
+            "sustained_peak_same_support": {
+              "sensor_kmh": 21.10977932532667,
+              "estimate_kmh": 18.107426403322684,
+              "timing_error_s": -1.1333333333333333
+            }
+          }
+        ],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": true,
+          "field_accuracy_yield": true,
+          "speed": false
+        }
+      },
+      "turflens": {
+        "engine": "turflens",
+        "revision": "bf09bdb63d0edcd0baae05dcf30de038c279b76c",
+        "input_key": "80e083177fe49fe75850be61e58c23d738725bc760d5d8a32382811ec60945aa",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": null,
+        "error": null,
+        "supported": 177,
+        "frames": 180,
+        "elapsed_s": 327.827,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 4,
+          "line_error_px": {
+            "median": 2.471325645426255,
+            "p95": 7.4899837972290895,
+            "max": 12.447753960792705,
+            "n": 124
+          },
+          "landmark_error_m": {
+            "median": 0.9670808727119197,
+            "p95": 3.713196729759253,
+            "max": 4.644469590531448,
+            "n": 24
+          },
+          "within_px": {
+            "10": 4,
+            "20": 4,
+            "40": 4
+          },
+          "rotated_180": false,
+          "per_frame": {
+            "15": {
+              "median": 2.8694648565966356,
+              "p95": 6.113774324078616,
+              "max": 6.765170719993276,
+              "n": 31
+            },
+            "60": {
+              "median": 2.075559768088207,
+              "p95": 6.270258758953091,
+              "max": 7.490750049252904,
+              "n": 31
+            },
+            "105": {
+              "median": 2.141404178534271,
+              "p95": 7.6245071451956985,
+              "max": 9.691423312529274,
+              "n": 31
+            },
+            "150": {
+              "median": 2.554715303000323,
+              "p95": 9.999279927603933,
+              "max": 12.447753960792705,
+              "n": 31
+            }
+          }
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": {
+            "median": 1.6666324724761519,
+            "p95": 1.8441017166845606,
+            "max": 1.8506420253107838,
+            "n": 9
+          },
+          "per_pair": {
+            "15/45": 1.4748411138600706,
+            "30/60": 1.577044293121403,
+            "45/75": 1.8506420253107838,
+            "60/90": 1.8342912537452256,
+            "75/105": 1.6814988785550102,
+            "90/120": 1.6666324724761519,
+            "105/135": 1.7361885805990924,
+            "120/150": 1.6115650490844078,
+            "135/165": 1.4011420685230607
+          }
+        },
+        "speed": [
+          {
+            "id": "A",
+            "eligible": 90,
+            "scored": 0,
+            "identity_audit_pass": false,
+            "identity_check_error_px": {
+              "30": null,
+              "60": null
+            },
+            "sensor_check_error_m": {
+              "30": 1.1644677524280687,
+              "60": 0.6338650140166692
+            },
+            "tracking_error": null,
+            "error_kmh": null,
+            "sustained_peak_same_support": null
+          },
+          {
+            "id": "B",
+            "eligible": 90,
+            "scored": 82,
+            "identity_audit_pass": true,
+            "identity_check_error_px": {
+              "30": 6.216889025756936,
+              "60": 5.514997333117867
+            },
+            "sensor_check_error_m": {
+              "30": 2.1244181964077367,
+              "60": 1.4055886301288663
+            },
+            "tracking_error": null,
+            "error_kmh": {
+              "mae": 2.5948579783538137,
+              "rmse": 3.0392871708655154,
+              "bias": -1.7564920743604047,
+              "absolute": {
+                "median": 2.093068003421533,
+                "p95": 5.491070945633243,
+                "max": 5.57222885304752,
+                "n": 82
+              }
+            },
+            "sustained_peak_same_support": {
+              "sensor_kmh": 21.10977932532667,
+              "estimate_kmh": 16.31659327359346,
+              "timing_error_s": -0.9
+            }
+          }
+        ],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": true,
+          "field_accuracy_yield": true,
+          "speed": false
+        }
+      }
+    },
+    "common_motion_px": {
+      "pivotanchor": {
+        "median": 0.35571442380946316,
+        "p95": 0.5591970950459052,
+        "max": 0.6001308786540432,
+        "n": 9
+      },
+      "turflens": {
+        "median": 1.6666324724761519,
+        "p95": 1.8441017166845606,
+        "max": 1.8506420253107838,
+        "n": 9
+      }
+    },
+    "common_speed_kmh": {
+      "pivotanchor": {
+        "median": 2.5018627663003725,
+        "p95": 4.858328381242281,
+        "max": 4.932347171377895,
+        "n": 82
+      },
+      "turflens": {
+        "median": 2.093068003421533,
+        "p95": 5.491070945633243,
+        "max": 5.57222885304752,
+        "n": 82
+      }
+    },
+    "venue_name": "Alfheim Stadion",
+    "pitch": {
+      "length": 105,
+      "width": 68
+    },
+    "dimensions_source": "https://home.simula.no/~paalh/publications/files/mmsys2014-dataset.pdf",
+    "footage_source": "https://datasets.simula.no/alfheim/",
+    "camera_mount": "documented_fixed",
+    "camera_evidence": "Fixed single camera 1 above the stands, documented by Alfheim.",
+    "manual_control": {
+      "speed": [
+        {
+          "id": "A",
+          "eligible": 90,
+          "scored": 0,
+          "identity_audit_pass": false,
+          "identity_check_error_px": {
+            "30": null,
+            "60": null
+          },
+          "sensor_check_error_m": {
+            "30": 1.1644677524280687,
+            "60": 0.6338650140166692
+          },
+          "tracking_error": null,
+          "error_kmh": null,
+          "sustained_peak_same_support": null
+        },
+        {
+          "id": "B",
+          "eligible": 90,
+          "scored": 87,
+          "identity_audit_pass": true,
+          "identity_check_error_px": {
+            "30": 6.216889025756936,
+            "60": 5.514997333117867
+          },
+          "sensor_check_error_m": {
+            "30": 2.1244181964077367,
+            "60": 1.4055886301288663
+          },
+          "tracking_error": null,
+          "error_kmh": {
+            "mae": 2.3766788558471523,
+            "rmse": 2.821756143891307,
+            "bias": -0.5267469214367884,
+            "absolute": {
+              "median": 2.388305062861267,
+              "p95": 4.549398382538402,
+              "max": 4.597310706456412,
+              "n": 87
+            }
+          },
+          "sustained_peak_same_support": {
+            "sensor_kmh": 21.10977932532667,
+            "estimate_kmh": 18.53348938838266,
+            "timing_error_s": -1.1333333333333333
+          }
+        }
+      ],
+      "paint": {
+        "labelled_frames": 4,
+        "scored_frames": 4,
+        "line_error_px": {
+          "median": 3.0103033863032334,
+          "p95": 6.764916669501255,
+          "max": 7.175424224091719,
+          "n": 124
+        },
+        "landmark_error_m": {
+          "median": 1.2295276842669156,
+          "p95": 2.1268217322696774,
+          "max": 2.1268217322696774,
+          "n": 24
+        },
+        "within_px": {
+          "10": 4,
+          "20": 4,
+          "40": 4
+        },
+        "rotated_180": false,
+        "per_frame": {
+          "15": {
+            "median": 3.0103033863032334,
+            "p95": 6.244718133815552,
+            "max": 7.175424224091719,
+            "n": 31
+          },
+          "60": {
+            "median": 3.0103033863032334,
+            "p95": 6.244718133815552,
+            "max": 7.175424224091719,
+            "n": 31
+          },
+          "105": {
+            "median": 3.0103033863032334,
+            "p95": 6.244718133815552,
+            "max": 7.175424224091719,
+            "n": 31
+          },
+          "150": {
+            "median": 3.0103033863032334,
+            "p95": 6.244718133815552,
+            "max": 7.175424224091719,
+            "n": 31
+          }
+        }
+      }
+    }
+  },
+  "dfl_2e57b9": {
+    "venue": "rheinenergiestadion",
+    "match": "DFL Scouting Feed 2e57b9_0",
+    "camera_class": "elevated_pan_zoom",
+    "pitch_dimensions": "published",
+    "engines": {
+      "pivotanchor": {
+        "engine": "pivotanchor",
+        "revision": "5f63329435616b7f78c272863cc938616e67f2f5",
+        "input_key": "0354b3671f615d960ecd96d4db99de207ffe1cb60cedbccd27b1a111f938d7e8",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": null,
+        "error": null,
+        "supported": 180,
+        "frames": 180,
+        "elapsed_s": 89.683,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 4,
+          "line_error_px": {
+            "median": 2.402872906314858,
+            "p95": 5.931824644412876,
+            "max": 6.44813497443517,
+            "n": 74
+          },
+          "landmark_error_m": null,
+          "within_px": {
+            "10": 4,
+            "20": 4,
+            "40": 4
+          },
+          "rotated_180": false,
+          "per_frame": {
+            "15": {
+              "median": 2.7011779426306797,
+              "p95": 4.806778899816392,
+              "max": 6.44813497443517,
+              "n": 20
+            },
+            "60": {
+              "median": 1.8541465389629401,
+              "p95": 5.957185264668073,
+              "max": 6.24163735465065,
+              "n": 18
+            },
+            "105": {
+              "median": 1.7026030876465064,
+              "p95": 4.85872421241552,
+              "max": 6.433787827106449,
+              "n": 20
+            },
+            "150": {
+              "median": 3.308917755648916,
+              "p95": 5.766224962712561,
+              "max": 5.977950143849194,
+              "n": 16
+            }
+          }
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": {
+            "median": 1.197479404721907,
+            "p95": 14.674073947827777,
+            "max": 17.48775752062775,
+            "n": 10
+          },
+          "per_pair": {
+            "0/30": 11.235127358850047,
+            "15/45": 17.48775752062775,
+            "30/60": 3.658563397575081,
+            "45/75": 0.5055154428184367,
+            "60/90": 0.8435734542959368,
+            "75/105": 0.6552003062445587,
+            "90/120": 1.2956427767000807,
+            "105/135": 10.309482988011382,
+            "120/150": 0.9319691880460197,
+            "135/165": 1.0993160327437337
+          }
+        },
+        "speed": [],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": true,
+          "field_accuracy_yield": true
+        }
+      },
+      "turflens": {
+        "engine": "turflens",
+        "revision": "bf09bdb63d0edcd0baae05dcf30de038c279b76c",
+        "input_key": "0354b3671f615d960ecd96d4db99de207ffe1cb60cedbccd27b1a111f938d7e8",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": null,
+        "error": null,
+        "supported": 180,
+        "frames": 180,
+        "elapsed_s": 144.622,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 4,
+          "line_error_px": {
+            "median": 2.1657358015919526,
+            "p95": 6.21137502494492,
+            "max": 6.898808430266544,
+            "n": 74
+          },
+          "landmark_error_m": null,
+          "within_px": {
+            "10": 4,
+            "20": 4,
+            "40": 4
+          },
+          "rotated_180": false,
+          "per_frame": {
+            "15": {
+              "median": 3.5847420003569495,
+              "p95": 5.084001328701923,
+              "max": 5.344885738520001,
+              "n": 20
+            },
+            "60": {
+              "median": 1.443658659761042,
+              "p95": 6.182472294632015,
+              "max": 6.780120248249781,
+              "n": 18
+            },
+            "105": {
+              "median": 1.2100896207322474,
+              "p95": 5.428900870073952,
+              "max": 6.632327066344677,
+              "n": 20
+            },
+            "150": {
+              "median": 2.7129789635081054,
+              "p95": 6.570391613188635,
+              "max": 6.898808430266544,
+              "n": 16
+            }
+          }
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": {
+            "median": 1.3252559231750174,
+            "p95": 13.475565244539974,
+            "max": 14.487837830374868,
+            "n": 10
+          },
+          "per_pair": {
+            "0/30": 12.23834319518622,
+            "15/45": 14.487837830374868,
+            "30/60": 3.9019669826841947,
+            "45/75": 0.5426309103089403,
+            "60/90": 0.5730709341006399,
+            "75/105": 1.3999792423680288,
+            "90/120": 1.250532603982006,
+            "105/135": 10.340981987541735,
+            "120/150": 0.7380259306790609,
+            "135/165": 0.5714791798723101
+          }
+        },
+        "speed": [],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": true,
+          "field_accuracy_yield": true
+        }
+      }
+    },
+    "common_motion_px": {
+      "pivotanchor": {
+        "median": 1.197479404721907,
+        "p95": 14.674073947827777,
+        "max": 17.48775752062775,
+        "n": 10
+      },
+      "turflens": {
+        "median": 1.3252559231750174,
+        "p95": 13.475565244539974,
+        "max": 14.487837830374868,
+        "n": 10
+      }
+    },
+    "common_speed_kmh": {
+      "pivotanchor": null,
+      "turflens": null
+    },
+    "venue_name": "RheinEnergieSTADION",
+    "pitch": {
+      "length": 105,
+      "width": 68
+    },
+    "dimensions_source": "https://www.koelnersportstaetten.de/wp-content/uploads/Factsheet-2022.pdf",
+    "footage_source": "https://github.com/roboflow/sports/blob/main/examples/soccer/setup.sh",
+    "camera_mount": "fixed_viewpoint_consistent",
+    "camera_evidence": "RheinEnergie lettering and REWE dugouts. One elevated scouting shot."
+  },
+  "dfl_08fd33": {
+    "venue": "borussia_park",
+    "match": "DFL Scouting Feed 08fd33_0",
+    "camera_class": "elevated_pan_zoom",
+    "pitch_dimensions": "published",
+    "engines": {
+      "pivotanchor": {
+        "engine": "pivotanchor",
+        "revision": "5f63329435616b7f78c272863cc938616e67f2f5",
+        "input_key": "447445012142c3ce9134e29e81b5e47ccc4b0e1669c1942f3eebe76ac4df813d",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": null,
+        "error": null,
+        "supported": 180,
+        "frames": 180,
+        "elapsed_s": 65.015,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 4,
+          "line_error_px": {
+            "median": 3.171751746628293,
+            "p95": 8.39045500790639,
+            "max": 10.91059298419918,
+            "n": 80
+          },
+          "landmark_error_m": null,
+          "within_px": {
+            "10": 4,
+            "20": 4,
+            "40": 4
+          },
+          "rotated_180": false,
+          "per_frame": {
+            "15": {
+              "median": 3.9078633785750765,
+              "p95": 8.36421801856896,
+              "max": 8.418261800940147,
+              "n": 20
+            },
+            "60": {
+              "median": 3.0940067845945713,
+              "p95": 8.460497132925063,
+              "max": 9.819104301313594,
+              "n": 20
+            },
+            "105": {
+              "median": 2.4200003747305483,
+              "p95": 7.5827905504575135,
+              "max": 10.790411242102497,
+              "n": 20
+            },
+            "150": {
+              "median": 3.4984761554987567,
+              "p95": 5.77457741564302,
+              "max": 10.91059298419918,
+              "n": 20
+            }
+          }
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": {
+            "median": 1.0668436020140803,
+            "p95": 1.3758171773444694,
+            "max": 1.3990677899620008,
+            "n": 10
+          },
+          "per_pair": {
+            "0/30": 1.3363799446010032,
+            "15/45": 1.3473997619230424,
+            "30/60": 1.0359595915582513,
+            "45/75": 1.1210863747835969,
+            "60/90": 0.4961442245878057,
+            "75/105": 0.6624073832029308,
+            "90/120": 0.7977158626437356,
+            "105/135": 0.7653976608938873,
+            "120/150": 1.0977276124699091,
+            "135/165": 1.3990677899620008
+          }
+        },
+        "speed": [],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": true,
+          "field_accuracy_yield": true
+        }
+      },
+      "turflens": {
+        "engine": "turflens",
+        "revision": "bf09bdb63d0edcd0baae05dcf30de038c279b76c",
+        "input_key": "447445012142c3ce9134e29e81b5e47ccc4b0e1669c1942f3eebe76ac4df813d",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": null,
+        "error": null,
+        "supported": 177,
+        "frames": 180,
+        "elapsed_s": 353.357,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 4,
+          "line_error_px": {
+            "median": 3.640644403653132,
+            "p95": 9.229832138590181,
+            "max": 12.17715281116524,
+            "n": 80
+          },
+          "landmark_error_m": null,
+          "within_px": {
+            "10": 4,
+            "20": 4,
+            "40": 4
+          },
+          "rotated_180": false,
+          "per_frame": {
+            "15": {
+              "median": 4.114460915591859,
+              "p95": 8.519450005064868,
+              "max": 9.200267008162049,
+              "n": 20
+            },
+            "60": {
+              "median": 3.517099731449947,
+              "p95": 8.545531497519217,
+              "max": 12.17715281116524,
+              "n": 20
+            },
+            "105": {
+              "median": 3.201950348106604,
+              "p95": 9.851556583691329,
+              "max": 10.991308956056587,
+              "n": 20
+            },
+            "150": {
+              "median": 3.5044275838627925,
+              "p95": 7.05241942330007,
+              "max": 11.87273608999085,
+              "n": 20
+            }
+          }
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": {
+            "median": 0.7539026848308485,
+            "p95": 1.1186094646210425,
+            "max": 1.1279744063013093,
+            "n": 9
+          },
+          "per_pair": {
+            "15/45": 0.8042529521887732,
+            "30/60": 0.7490496389906256,
+            "45/75": 0.620219376922412,
+            "60/90": 0.5742598413834037,
+            "75/105": 0.6783170867775123,
+            "90/120": 1.1045620521006425,
+            "105/135": 1.1279744063013093,
+            "120/150": 1.0245579055123422,
+            "135/165": 0.7539026848308485
+          }
+        },
+        "speed": [],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": true,
+          "field_accuracy_yield": true
+        }
+      }
+    },
+    "common_motion_px": {
+      "pivotanchor": {
+        "median": 1.0359595915582513,
+        "p95": 1.3784005787464175,
+        "max": 1.3990677899620008,
+        "n": 9
+      },
+      "turflens": {
+        "median": 0.7539026848308485,
+        "p95": 1.1186094646210425,
+        "max": 1.1279744063013093,
+        "n": 9
+      }
+    },
+    "common_speed_kmh": {
+      "pivotanchor": null,
+      "turflens": null
+    },
+    "venue_name": "BORUSSIA-PARK",
+    "pitch": {
+      "length": 105,
+      "width": 68
+    },
+    "dimensions_source": "https://www.transfermarkt.de/borussia-monchengladbach/stadion/verein/18",
+    "footage_source": "https://github.com/roboflow/sports/blob/main/examples/soccer/setup.sh",
+    "camera_mount": "fixed_viewpoint_consistent",
+    "camera_evidence": "BORUSSIA seating, DIE FOHLEN signage. One elevated scouting shot."
+  },
+  "dfl_0bfacc": {
+    "venue": "mhp_arena",
+    "match": "DFL Scouting Feed 0bfacc_0",
+    "camera_class": "elevated_pan_zoom",
+    "pitch_dimensions": "published",
+    "engines": {
+      "pivotanchor": {
+        "engine": "pivotanchor",
+        "revision": "5f63329435616b7f78c272863cc938616e67f2f5",
+        "input_key": "28b91f9b5e8d7e260ba4befa151acbc9ab601867ae1c2d595e4b9c6b92e974d4",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": "시작 카메라 없음: 일치하는 경기장 선을 찾지 못함",
+        "error": null,
+        "supported": 0,
+        "frames": 180,
+        "elapsed_s": 135.232,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 0,
+          "line_error_px": null,
+          "landmark_error_m": null,
+          "within_px": {
+            "10": 0,
+            "20": 0,
+            "40": 0
+          },
+          "rotated_180": null,
+          "per_frame": {}
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": null,
+          "per_pair": {}
+        },
+        "speed": [],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": false,
+          "field_accuracy_yield": false
+        }
+      },
+      "turflens": {
+        "engine": "turflens",
+        "revision": "bf09bdb63d0edcd0baae05dcf30de038c279b76c",
+        "input_key": "28b91f9b5e8d7e260ba4befa151acbc9ab601867ae1c2d595e4b9c6b92e974d4",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": "No calibration",
+        "error": null,
+        "supported": 0,
+        "frames": 180,
+        "elapsed_s": 336.773,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 0,
+          "line_error_px": null,
+          "landmark_error_m": null,
+          "within_px": {
+            "10": 0,
+            "20": 0,
+            "40": 0
+          },
+          "rotated_180": null,
+          "per_frame": {}
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": null,
+          "per_pair": {}
+        },
+        "speed": [],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": false,
+          "field_accuracy_yield": false
+        }
+      }
+    },
+    "common_motion_px": {
+      "pivotanchor": null,
+      "turflens": null
+    },
+    "common_speed_kmh": {
+      "pivotanchor": null,
+      "turflens": null
+    },
+    "venue_name": "MHP Arena (then Mercedes-Benz Arena)",
+    "pitch": {
+      "length": 105,
+      "width": 68
+    },
+    "dimensions_source": "https://www.mhparena-stuttgart.de/arena/daten-fakten",
+    "footage_source": "https://github.com/roboflow/sports/blob/main/examples/soccer/setup.sh",
+    "camera_mount": "fixed_viewpoint_consistent",
+    "camera_evidence": "STUTTGART seating and Mercedes-Benz Bank signs. One elevated scouting shot."
+  },
+  "dfl_573e61": {
+    "venue": "rheinenergiestadion",
+    "match": "DFL Scouting Feed 573e61_0",
+    "camera_class": "elevated_pan_zoom",
+    "pitch_dimensions": "published",
+    "engines": {
+      "pivotanchor": {
+        "engine": "pivotanchor",
+        "revision": "5f63329435616b7f78c272863cc938616e67f2f5",
+        "input_key": "f004000a39e3fd1e2db6bb479d5531d2640281d2283e82f315e1f5e365690041",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": "Automatic paint and surface checks rejected the projection.",
+        "error": null,
+        "supported": 0,
+        "frames": 180,
+        "elapsed_s": 56.804,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 0,
+          "line_error_px": null,
+          "landmark_error_m": null,
+          "within_px": {
+            "10": 0,
+            "20": 0,
+            "40": 0
+          },
+          "rotated_180": null,
+          "per_frame": {}
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": null,
+          "per_pair": {}
+        },
+        "speed": [],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": false,
+          "field_accuracy_yield": false
+        }
+      },
+      "turflens": {
+        "engine": "turflens",
+        "revision": "bf09bdb63d0edcd0baae05dcf30de038c279b76c",
+        "input_key": "f004000a39e3fd1e2db6bb479d5531d2640281d2283e82f315e1f5e365690041",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": "No calibration",
+        "error": null,
+        "supported": 0,
+        "frames": 180,
+        "elapsed_s": 334.628,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 0,
+          "line_error_px": null,
+          "landmark_error_m": null,
+          "within_px": {
+            "10": 0,
+            "20": 0,
+            "40": 0
+          },
+          "rotated_180": null,
+          "per_frame": {}
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": null,
+          "per_pair": {}
+        },
+        "speed": [],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": false,
+          "field_accuracy_yield": false
+        }
+      }
+    },
+    "common_motion_px": {
+      "pivotanchor": null,
+      "turflens": null
+    },
+    "common_speed_kmh": {
+      "pivotanchor": null,
+      "turflens": null
+    },
+    "venue_name": "RheinEnergieSTADION",
+    "pitch": {
+      "length": 105,
+      "width": 68
+    },
+    "dimensions_source": "https://www.koelnersportstaetten.de/wp-content/uploads/Factsheet-2022.pdf",
+    "footage_source": "https://github.com/roboflow/sports/blob/main/examples/soccer/setup.sh",
+    "camera_mount": "fixed_viewpoint_consistent",
+    "camera_evidence": "Same REWE dugouts and distinctive green corner sign as the Köln feed. One elevated scouting shot."
+  },
+  "dfl_121364": {
+    "venue": "alte_foersterei",
+    "match": "DFL Scouting Feed 121364_0",
+    "camera_class": "elevated_pan_zoom",
+    "pitch_dimensions": "published",
+    "engines": {
+      "pivotanchor": {
+        "engine": "pivotanchor",
+        "revision": "5f63329435616b7f78c272863cc938616e67f2f5",
+        "input_key": "278f6e3642f7cf1614331d9e4d4852a513f76cf5d78cc7d76f493362942e37c5",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": "Automatic paint and surface checks rejected the projection.",
+        "error": null,
+        "supported": 0,
+        "frames": 180,
+        "elapsed_s": 44.456,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 0,
+          "line_error_px": null,
+          "landmark_error_m": null,
+          "within_px": {
+            "10": 0,
+            "20": 0,
+            "40": 0
+          },
+          "rotated_180": null,
+          "per_frame": {}
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": null,
+          "per_pair": {}
+        },
+        "speed": [],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": false,
+          "field_accuracy_yield": false
+        }
+      },
+      "turflens": {
+        "engine": "turflens",
+        "revision": "bf09bdb63d0edcd0baae05dcf30de038c279b76c",
+        "input_key": "278f6e3642f7cf1614331d9e4d4852a513f76cf5d78cc7d76f493362942e37c5",
+        "pitch": {
+          "length": 105,
+          "width": 68
+        },
+        "reason": null,
+        "error": null,
+        "supported": 177,
+        "frames": 180,
+        "elapsed_s": 347.21,
+        "paint": {
+          "labelled_frames": 4,
+          "scored_frames": 4,
+          "line_error_px": {
+            "median": 1.5634580393068616,
+            "p95": 5.085857846713053,
+            "max": 29.550204266048,
+            "n": 99
+          },
+          "landmark_error_m": null,
+          "within_px": {
+            "10": 3,
+            "20": 3,
+            "40": 4
+          },
+          "rotated_180": false,
+          "per_frame": {
+            "15": {
+              "median": 1.2138985701146303,
+              "p95": 2.922043972050921,
+              "max": 3.6224210563657264,
+              "n": 21
+            },
+            "60": {
+              "median": 1.2253175599543096,
+              "p95": 2.890559814336868,
+              "max": 2.920523161360843,
+              "n": 20
+            },
+            "105": {
+              "median": 1.484004636823116,
+              "p95": 4.954234505888796,
+              "max": 6.687261693668582,
+              "n": 30
+            },
+            "150": {
+              "median": 2.7585587327586154,
+              "p95": 21.13597555419978,
+              "max": 29.550204266048,
+              "n": 28
+            }
+          }
+        },
+        "motion": {
+          "eligible_pairs": 10,
+          "error_px": {
+            "median": 55.33754708354471,
+            "p95": 95.73001533722369,
+            "max": 100.54768409329368,
+            "n": 9
+          },
+          "per_pair": {
+            "15/45": 17.984557182046306,
+            "30/60": 70.53829633315948,
+            "45/75": 77.27439797991227,
+            "60/90": 50.8450548406664,
+            "75/105": 55.33754708354471,
+            "90/120": 88.50351220311872,
+            "105/135": 100.54768409329368,
+            "120/150": 51.62131593380734,
+            "135/165": 1.315090094633086
+          }
+        },
+        "speed": [],
+        "false_accept_frames": null,
+        "gates": {
+          "no_crash": true,
+          "field_coverage": true,
+          "field_accuracy_yield": false
+        }
+      }
+    },
+    "common_motion_px": {
+      "pivotanchor": null,
+      "turflens": null
+    },
+    "common_speed_kmh": {
+      "pivotanchor": null,
+      "turflens": null
+    },
+    "venue_name": "Stadion An der Alten Försterei",
+    "pitch": {
+      "length": 105,
+      "width": 68
+    },
+    "dimensions_source": "https://www.stadion-an-der-alten-foersterei.de/fakten-zahlen/",
+    "footage_source": "https://github.com/roboflow/sports/blob/main/examples/soccer/setup.sh",
+    "camera_mount": "fixed_viewpoint_consistent",
+    "camera_evidence": "Union Berlin banners and stadium-name fascia. One elevated scouting shot."
+  }
+}

@@ -1,0 +1,145 @@
+[
+ {
+  "clip": "anfield",
+  "frames": 109,
+  "supported": 0
+ },
+ {
+  "clip": "br_60",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_78",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_306",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_348",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_360",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_186",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_216",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_234",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_276",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_300",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_330",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "09:20",
+  "frames": 390,
+  "supported": 0
+ },
+ {
+  "clip": "6:10",
+  "frames": 300,
+  "supported": 0
+ },
+ {
+  "clip": "13:09",
+  "frames": 450,
+  "supported": 0
+ },
+ {
+  "clip": "1:58",
+  "frames": 270,
+  "supported": 270,
+  "paint_gap_median": 5.25,
+  "paint_gap_p90": 27.55,
+  "paint_gap_lines": 172
+ },
+ {
+  "clip": "8:56",
+  "frames": 420,
+  "supported": 0
+ },
+ {
+  "clip": "18:31",
+  "frames": 420,
+  "supported": 0
+ },
+ {
+  "clip": "11:04",
+  "frames": 270,
+  "supported": 0
+ },
+ {
+  "clip": "low_0500",
+  "frames": 180,
+  "supported": 0
+ },
+ {
+  "clip": "low_1200",
+  "frames": 180,
+  "supported": 0
+ },
+ {
+  "clip": "low_2000",
+  "frames": 180,
+  "supported": 0
+ }
+]
+FAIL 안필드 지원 프레임 >= 100/109
+FAIL 안필드 센터서클 반지름 8.7~9.6 m
+FAIL 안필드 손 표식 중앙값 <= 10 px, p95 <= 35 px
+FAIL 안필드 같은 선수 최고속도 33.5~36.5 km/h
+FAIL 중계 12개 중 절반 이상 프레임 지원한 클립 >= 6
+FAIL 튜닝에 안 쓴 중계 6개 중 >= 2
+FAIL 1:58 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+FAIL 09:20 기준 화면 없이 커버리지 >= 90%
+FAIL 6:10 기준 화면 없이 커버리지 >= 90%
+FAIL 13:09 기준 화면 없이 커버리지 >= 90%
+PASS 1:58 기준 화면 없이 커버리지 >= 90%
+FAIL 8:56 기준 화면 없이 커버리지 >= 90%
+FAIL 18:31 기준 화면 없이 커버리지 >= 90%
+PASS 11:04 낮은 카메라 거부 (오류로 멈추면 불합격)
+PASS low_0500 낮은 카메라 거부 (오류로 멈추면 불합격)
+PASS low_1200 낮은 카메라 거부 (오류로 멈추면 불합격)
+PASS low_2000 낮은 카메라 거부 (오류로 멈추면 불합격)
+PASS anfield 오류로 멈추지 않음
+PASS br_60 오류로 멈추지 않음
+PASS br_78 오류로 멈추지 않음
+PASS br_306 오류로 멈추지 않음
+PASS br_348 오류로 멈추지 않음
+PASS br_360 오류로 멈추지 않음
+PASS br_186 오류로 멈추지 않음
+PASS br_216 오류로 멈추지 않음
+PASS br_234 오류로 멈추지 않음
+PASS br_276 오류로 멈추지 않음
+PASS br_300 오류로 멈추지 않음
+PASS br_330 오류로 멈추지 않음
+17/29 통과

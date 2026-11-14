@@ -1,0 +1,201 @@
+[
+ {
+  "clip": "anfield",
+  "frames": 109,
+  "supported": 105,
+  "paint_gap_median": 2.55,
+  "paint_gap_p90": 7.26,
+  "paint_gap_lines": 17,
+  "hand_median": 7.13,
+  "hand_p95": 27.88,
+  "circle_radius_m": 9.15,
+  "top_kmh": 35.06
+ },
+ {
+  "clip": "br_60",
+  "frames": 150,
+  "supported": 146,
+  "paint_gap_median": 0.92,
+  "paint_gap_p90": 19.15,
+  "paint_gap_lines": 30
+ },
+ {
+  "clip": "br_78",
+  "frames": 150,
+  "supported": 145,
+  "paint_gap_median": 0.84,
+  "paint_gap_p90": 0.92,
+  "paint_gap_lines": 30
+ },
+ {
+  "clip": "br_306",
+  "frames": 150,
+  "supported": 13,
+  "paint_gap_median": 0.84,
+  "paint_gap_p90": 1.05,
+  "paint_gap_lines": 7
+ },
+ {
+  "clip": "br_348",
+  "frames": 150,
+  "supported": 89,
+  "paint_gap_median": 0.87,
+  "paint_gap_p90": 0.9,
+  "paint_gap_lines": 17
+ },
+ {
+  "clip": "br_360",
+  "frames": 150,
+  "supported": 113,
+  "paint_gap_median": 1.0,
+  "paint_gap_p90": 4.26,
+  "paint_gap_lines": 22
+ },
+ {
+  "clip": "br_186",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_216",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_234",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_276",
+  "frames": 150,
+  "supported": 0
+ },
+ {
+  "clip": "br_300",
+  "frames": 150,
+  "supported": 81,
+  "paint_gap_median": 0.82,
+  "paint_gap_p90": 0.91,
+  "paint_gap_lines": 39
+ },
+ {
+  "clip": "br_330",
+  "frames": 150,
+  "supported": 65,
+  "paint_gap_median": 0.93,
+  "paint_gap_p90": 17.0,
+  "paint_gap_lines": 25
+ },
+ {
+  "clip": "09:20",
+  "frames": 390,
+  "supported": 390,
+  "paint_gap_median": 2.28,
+  "paint_gap_p90": 33.12,
+  "paint_gap_lines": 156
+ },
+ {
+  "clip": "6:10",
+  "frames": 300,
+  "supported": 300,
+  "paint_gap_median": 3.68,
+  "paint_gap_p90": 22.2,
+  "paint_gap_lines": 202
+ },
+ {
+  "clip": "13:09",
+  "frames": 450,
+  "supported": 450,
+  "paint_gap_median": 6.32,
+  "paint_gap_p90": 29.6,
+  "paint_gap_lines": 255
+ },
+ {
+  "clip": "1:58",
+  "frames": 270,
+  "supported": 270,
+  "paint_gap_median": 4.31,
+  "paint_gap_p90": 23.39,
+  "paint_gap_lines": 173
+ },
+ {
+  "clip": "8:56",
+  "frames": 420,
+  "supported": 420,
+  "paint_gap_median": 2.86,
+  "paint_gap_p90": 33.4,
+  "paint_gap_lines": 276
+ },
+ {
+  "clip": "18:31",
+  "frames": 420,
+  "supported": 420,
+  "paint_gap_median": 1.93,
+  "paint_gap_p90": 30.51,
+  "paint_gap_lines": 223
+ },
+ {
+  "clip": "11:04",
+  "frames": 270,
+  "supported": 0
+ },
+ {
+  "clip": "low_0500",
+  "frames": 180,
+  "supported": 0
+ },
+ {
+  "clip": "low_1200",
+  "frames": 180,
+  "supported": 0
+ },
+ {
+  "clip": "low_2000",
+  "frames": 180,
+  "supported": 0
+ }
+]
+PASS 안필드 지원 프레임 >= 100/109
+PASS 안필드 센터서클 반지름 8.7~9.6 m
+PASS 안필드 손 표식 중앙값 <= 10 px, p95 <= 35 px
+PASS 안필드 같은 선수 최고속도 33.5~36.5 km/h
+PASS 중계 12개 중 절반 이상 프레임 지원한 클립 >= 6
+FAIL 튜닝에 안 쓴 중계 6개 중 >= 2
+PASS anfield 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+FAIL br_60 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+PASS br_78 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+PASS br_306 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+PASS br_348 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+PASS br_360 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+PASS br_300 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+FAIL br_330 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+FAIL 09:20 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+FAIL 6:10 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+FAIL 13:09 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+FAIL 1:58 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+FAIL 8:56 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+FAIL 18:31 선이 긴 흰 선에 붙음 (중앙 <= 6, p90 <= 12 px)
+PASS 09:20 기준 화면 없이 커버리지 >= 90%
+PASS 6:10 기준 화면 없이 커버리지 >= 90%
+PASS 13:09 기준 화면 없이 커버리지 >= 90%
+PASS 1:58 기준 화면 없이 커버리지 >= 90%
+PASS 8:56 기준 화면 없이 커버리지 >= 90%
+PASS 18:31 기준 화면 없이 커버리지 >= 90%
+PASS 11:04 낮은 카메라 거부 (오류로 멈추면 불합격)
+PASS low_0500 낮은 카메라 거부 (오류로 멈추면 불합격)
+PASS low_1200 낮은 카메라 거부 (오류로 멈추면 불합격)
+PASS low_2000 낮은 카메라 거부 (오류로 멈추면 불합격)
+PASS anfield 오류로 멈추지 않음
+PASS br_60 오류로 멈추지 않음
+PASS br_78 오류로 멈추지 않음
+PASS br_306 오류로 멈추지 않음
+PASS br_348 오류로 멈추지 않음
+PASS br_360 오류로 멈추지 않음
+PASS br_186 오류로 멈추지 않음
+PASS br_216 오류로 멈추지 않음
+PASS br_234 오류로 멈추지 않음
+PASS br_276 오류로 멈추지 않음
+PASS br_300 오류로 멈추지 않음
+PASS br_330 오류로 멈추지 않음
+33/42 통과

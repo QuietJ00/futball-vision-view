@@ -1,0 +1,296 @@
+{
+ "clips": [
+  {
+   "clip": "09:20",
+   "supported": 390,
+   "frames": 390,
+   "reason": null,
+   "hand": [
+    3.25,
+    8.12,
+    349
+   ],
+   "sift_2s_p95_px": 22.61
+  },
+  {
+   "clip": "6:10",
+   "supported": 300,
+   "frames": 300,
+   "reason": null,
+   "hand": null,
+   "sift_2s_p95_px": 7.65
+  },
+  {
+   "clip": "13:09",
+   "supported": 450,
+   "frames": 450,
+   "reason": null,
+   "hand": [
+    11.76,
+    28.38,
+    20
+   ],
+   "sift_2s_p95_px": 9.76
+  },
+  {
+   "clip": "1:58",
+   "supported": 270,
+   "frames": 270,
+   "reason": null,
+   "hand": null,
+   "sift_2s_p95_px": 9.19
+  },
+  {
+   "clip": "8:56",
+   "supported": 420,
+   "frames": 420,
+   "reason": null,
+   "hand": null,
+   "sift_2s_p95_px": 2.43
+  },
+  {
+   "clip": "18:31",
+   "supported": 420,
+   "frames": 420,
+   "reason": null,
+   "hand": null,
+   "sift_2s_p95_px": 14.76
+  },
+  {
+   "clip": "11:04",
+   "supported": 0,
+   "frames": 270,
+   "reason": "Automatic paint and surface checks rejected the projection."
+  },
+  {
+   "clip": "low_0500",
+   "supported": 0,
+   "frames": 180,
+   "reason": "No consistent automatic pitch pose was found."
+  },
+  {
+   "clip": "low_1200",
+   "supported": 0,
+   "frames": 180,
+   "reason": "No consistent automatic pitch pose was found."
+  },
+  {
+   "clip": "low_2000",
+   "supported": 0,
+   "frames": 180,
+   "reason": "No consistent automatic pitch pose was found."
+  },
+  {
+   "clip": "14:48",
+   "supported": 0,
+   "frames": 270,
+   "reason": "Automatic paint and surface checks rejected the projection."
+  }
+ ],
+ "gate_injection": [
+  {
+   "clip": "09:20",
+   "error": "화면 12 px",
+   "supported": 0,
+   "frames": 390
+  },
+  {
+   "clip": "09:20",
+   "error": "구장 2 m",
+   "supported": 0,
+   "frames": 390
+  },
+  {
+   "clip": "6:10",
+   "error": "화면 12 px",
+   "supported": 0,
+   "frames": 300
+  },
+  {
+   "clip": "6:10",
+   "error": "구장 2 m",
+   "supported": 0,
+   "frames": 300
+  },
+  {
+   "clip": "13:09",
+   "error": "화면 12 px",
+   "supported": 0,
+   "frames": 450
+  },
+  {
+   "clip": "13:09",
+   "error": "구장 2 m",
+   "supported": 0,
+   "frames": 450
+  },
+  {
+   "clip": "1:58",
+   "error": "화면 12 px",
+   "supported": 0,
+   "frames": 270
+  },
+  {
+   "clip": "1:58",
+   "error": "구장 2 m",
+   "supported": 0,
+   "frames": 270
+  },
+  {
+   "clip": "8:56",
+   "error": "화면 12 px",
+   "supported": 0,
+   "frames": 420
+  },
+  {
+   "clip": "8:56",
+   "error": "구장 2 m",
+   "supported": 0,
+   "frames": 420
+  },
+  {
+   "clip": "18:31",
+   "error": "화면 12 px",
+   "supported": 0,
+   "frames": 420
+  },
+  {
+   "clip": "18:31",
+   "error": "구장 2 m",
+   "supported": 0,
+   "frames": 420
+  }
+ ],
+ "wrong_seeds": [
+  {
+   "clip": "09:20",
+   "seed": "y3",
+   "supported": 390,
+   "off_m": 3.08,
+   "hand": [
+    13.57,
+    60.17,
+    349
+   ]
+  },
+  {
+   "clip": "09:20",
+   "seed": "x2",
+   "supported": 0
+  },
+  {
+   "clip": "6:10",
+   "seed": "y3",
+   "supported": 0
+  },
+  {
+   "clip": "6:10",
+   "seed": "x2",
+   "supported": 0
+  },
+  {
+   "clip": "13:09",
+   "seed": "y3",
+   "supported": 0
+  },
+  {
+   "clip": "13:09",
+   "seed": "x2",
+   "supported": 0
+  },
+  {
+   "clip": "1:58",
+   "seed": "y3",
+   "supported": 0
+  },
+  {
+   "clip": "1:58",
+   "seed": "x2",
+   "supported": 0
+  },
+  {
+   "clip": "8:56",
+   "seed": "y3",
+   "supported": 0
+  },
+  {
+   "clip": "8:56",
+   "seed": "x2",
+   "supported": 0
+  },
+  {
+   "clip": "18:31",
+   "seed": "y3",
+   "supported": 0
+  },
+  {
+   "clip": "18:31",
+   "seed": "x2",
+   "supported": 0
+  }
+ ],
+ "old_seed": {
+  "supported": 0,
+  "reason": "Automatic paint and surface checks rejected the projection.",
+  "pivot": [
+   30.13,
+   37.54,
+   4.94
+  ]
+ },
+ "repair": {
+  "1000": 0.0,
+  "1550": 0.0,
+  "2170": 0.0,
+  "5400": 0.0
+ }
+}
+PASS 09:20 커버리지 >= 390
+FAIL 09:20 SIFT 2초 오차 p95 <= 10 px
+PASS 6:10 커버리지 >= 288
+PASS 6:10 SIFT 2초 오차 p95 <= 10 px
+PASS 13:09 커버리지 >= 438
+PASS 13:09 SIFT 2초 오차 p95 <= 10 px
+PASS 1:58 커버리지 >= 270
+PASS 1:58 SIFT 2초 오차 p95 <= 10 px
+PASS 8:56 커버리지 >= 420
+PASS 8:56 SIFT 2초 오차 p95 <= 10 px
+PASS 18:31 커버리지 >= 400
+FAIL 18:31 SIFT 2초 오차 p95 <= 10 px
+FAIL 09:20 손 표식 <= 3.3 / 8.0 px
+FAIL 13:09 손 표식 <= 10.8 / 19.4 px
+PASS 09:20 화면 12 px 오차 주입 차단
+PASS 09:20 구장 2 m 오차 주입 차단
+PASS 6:10 화면 12 px 오차 주입 차단
+PASS 6:10 구장 2 m 오차 주입 차단
+PASS 13:09 화면 12 px 오차 주입 차단
+PASS 13:09 구장 2 m 오차 주입 차단
+PASS 1:58 화면 12 px 오차 주입 차단
+PASS 1:58 구장 2 m 오차 주입 차단
+PASS 8:56 화면 12 px 오차 주입 차단
+PASS 8:56 구장 2 m 오차 주입 차단
+PASS 18:31 화면 12 px 오차 주입 차단
+PASS 18:31 구장 2 m 오차 주입 차단
+FAIL 09:20 틀린 시드 y3 거부 또는 복귀
+PASS 09:20 틀린 시드 x2 거부 또는 복귀
+PASS 6:10 틀린 시드 y3 거부 또는 복귀
+PASS 6:10 틀린 시드 x2 거부 또는 복귀
+PASS 13:09 틀린 시드 y3 거부 또는 복귀
+PASS 13:09 틀린 시드 x2 거부 또는 복귀
+PASS 1:58 틀린 시드 y3 거부 또는 복귀
+PASS 1:58 틀린 시드 x2 거부 또는 복귀
+PASS 8:56 틀린 시드 y3 거부 또는 복귀
+PASS 8:56 틀린 시드 x2 거부 또는 복귀
+PASS 18:31 틀린 시드 y3 거부 또는 복귀
+PASS 18:31 틀린 시드 x2 거부 또는 복귀
+PASS 11:04 거부 유지
+PASS low_0500 거부 유지
+PASS low_1200 거부 유지
+PASS low_2000 거부 유지
+PASS 14:48 틀린 시드 거부
+PASS 골라인 근거에 도달 가능
+PASS 초점거리 1000 튐 46 px 복구 <= 5 px
+PASS 초점거리 1550 튐 46 px 복구 <= 5 px
+PASS 초점거리 2170 튐 46 px 복구 <= 5 px
+PASS 초점거리 5400 튐 46 px 복구 <= 5 px
+43/48 통과

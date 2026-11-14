@@ -1,0 +1,14 @@
+anzhi_c1               pivotanchor 180/180 PASS
+anzhi_c1               turflens    177/180 PASS
+stromsgodset_c1        pivotanchor 180/180 FAIL speed
+stromsgodset_c1        turflens    177/180 FAIL speed
+dfl_2e57b9             pivotanchor 180/180 PASS
+dfl_2e57b9             turflens    180/180 PASS
+dfl_08fd33             pivotanchor 180/180 PASS
+dfl_08fd33             turflens    177/180 PASS
+dfl_0bfacc             pivotanchor   0/180 FAIL field_coverage, field_accuracy_yield
+dfl_0bfacc             turflens      0/180 FAIL field_coverage, field_accuracy_yield
+dfl_573e61             pivotanchor   0/180 FAIL field_coverage, field_accuracy_yield
+dfl_573e61             turflens      0/180 FAIL field_coverage, field_accuracy_yield
+dfl_121364             pivotanchor   0/180 FAIL field_coverage, field_accuracy_yield
+dfl_121364             turflens    177/180 FAIL field_accuracy_yield
