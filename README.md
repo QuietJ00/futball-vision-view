@@ -2,7 +2,7 @@
 
 아마추어 축구 경기 영상에서 선수 한 명을 찍으면, 속도 분석이 들어간 중계 스타일 하이라이트를 만들어 주는 로컬 웹앱이에요. 화면은 QuarterMate 다크 테마를 따릅니다.
 
-[![Unit tests](https://github.com/QuietJ00/futball-vision/actions/workflows/tests.yml/badge.svg)](https://github.com/QuietJ00/futball-vision/actions/workflows/tests.yml)
+[![Unit tests](https://github.com/QuietJ00/futball-vision-view/actions/workflows/tests.yml/badge.svg)](https://github.com/QuietJ00/futball-vision-view/actions/workflows/tests.yml)
 
 ## 먼저 볼 것: 엔진 평가 CLI `field_benchmark`
 
