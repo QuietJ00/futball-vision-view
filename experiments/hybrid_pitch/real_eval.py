@@ -17,7 +17,7 @@ os.environ['AUTOHL_CALIBRATOR'] = 'camera'
 import cv2
 import numpy as np
 
-from autohl import camera, camfit, detect, field_geometry, field_solver as fs, hybrid_calib as hc, pipeline, pitch, semantic_pitch, speed, video
+from autohl import camfit, detect, field_geometry, field_solver as fs, hybrid_calib as hc, pipeline, pitch, semantic_pitch, speed, video
 from autohl.camera import warp
 
 HERE = Path(__file__).parent

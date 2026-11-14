@@ -3,7 +3,7 @@ import cv2,numpy as np
 from PIL import Image,ImageDraw
 from functools import lru_cache
 from . import ui,track
-from .ui import fnt,spaced,ink_text,ease,ramp,fade,over,P,W,H,INK,INK2,WHITE,MUTED,BRAND,AMBER,GO,GOLD,RED
+from .ui import fnt,spaced,ink_text,ease,ramp,fade,over,P,W,H,INK,INK2,WHITE,MUTED,BRAND,AMBER,GO,RED
 from .video import FF,FPS
 # Offside check at the pass: the second-last defender's line and the attacker's line on the
 # pitch (constant X), the gap between them measured along the touchline, and a VAR-style verdict.

@@ -3,7 +3,7 @@ import cv2,numpy as np
 from PIL import Image,ImageDraw
 from functools import lru_cache
 from . import ui
-from .ui import fnt,spaced,spaced_w,ink_text,cap,unit,value,ease,ramp,fade,over,P,W,H,INK,INK2,WHITE,MUTED,AMBER,GOLD
+from .ui import fnt,spaced,spaced_w,ink_text,cap,unit,value,ease,ramp,over,P,W,H,INK,INK2,WHITE,MUTED,AMBER,GOLD
 from .video import FF,FPS
 # Player highlight template: one marked player with live speed, a running-stats lower third,
 # then an event card (GOAL / ASSIST / SPRINT) with top and average speed.
