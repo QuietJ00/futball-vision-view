@@ -1,6 +1,5 @@
 import numpy as np,cv2
 from scipy.linalg import fractional_matrix_power
-from scipy.spatial.transform import Rotation
 MIN_LINK_INLIERS=40
 
 def distort(points,k1,focal):

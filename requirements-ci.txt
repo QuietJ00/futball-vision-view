@@ -1,0 +1,8 @@
+# Light dependencies for the unit tests that run in CI.
+# torch is installed separately from the CPU wheel index (see .github/workflows/tests.yml).
+numpy==2.5.4
+opencv-python-headless==5.0.0.93
+scipy==1.18.1
+pillow==13.0.0
+imageio-ffmpeg==0.8.0
+ruff==0.17.5
